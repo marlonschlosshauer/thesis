@@ -1,0 +1,11 @@
+#+TITLE: State Conceptualization in REPL Driven Development 
+#+AUTHOR: Marlon Schlosshauer, Angewandte Informatik, Hochschule Offenburg
+#+LANGUAGE: de
+#+OPTIONS: \n:t
+#+LATEX_CLASS_OPTIONS: [twocolumn]
+#+LATEX_HEADER: \usepackage[margin=0.5in]{geometry}
+#+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
+#+LATEX_HEADER: \renewcommand*{\contentsname}{Inhaltsverzeichnis}
+#+OPTIONS: broken-links:auto
+
+ 

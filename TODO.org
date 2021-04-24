@@ -1,0 +1,4 @@
+* Bulletpoints
+  - codestates
+  - code as diagram (view in browser?)
+  - result visualization and diffing
