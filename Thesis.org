@@ -1,4 +1,4 @@
-#+TITLE: State Conceptualization in REPL Driven Development 
+#+TITLE: Komposition von UI Elementen in reacl-cl mittels Monaden
 #+AUTHOR: Marlon Schlosshauer, Angewandte Informatik, Hochschule Offenburg
 #+LANGUAGE: de
 #+OPTIONS: \n:t
@@ -8,4 +8,10 @@
 #+LATEX_HEADER: \renewcommand*{\contentsname}{Inhaltsverzeichnis}
 #+OPTIONS: broken-links:auto
 
- 
+* Motivation
+* Gewünschtes Verhalten
+* Momentar Stand
+* Implementierung
+* Alternativen
+* Optimierungen
+** Tail Recursion
