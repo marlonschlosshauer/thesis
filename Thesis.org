@@ -2,7 +2,6 @@
 #+AUTHOR: Marlon Schlosshauer, Angewandte Informatik, Hochschule Offenburg
 #+LANGUAGE: de
 #+OPTIONS: \n:t
-#+LATEX_CLASS_OPTIONS: [twocolumn]
 #+LATEX_HEADER: \usepackage[margin=0.5in]{geometry}
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
 #+LATEX_HEADER: \renewcommand*{\contentsname}{Inhaltsverzeichnis}
@@ -11,7 +10,24 @@
 * Motivation
 * Gewünschtes Verhalten
 * Momentar Stand
+* Was ist React
+React ist ein populäres UI Framework von Facebook welches in Javascript geschrieben ist.
+Wie Angular und Vue ist React eine Single-Page-Application (SPA). Statt Webseiten in HTML zu schreiben, ermöglicht es React dem Entwickler in Javascript Komponenten zu definieren, welche später dynamisch von dem Framework zu HTML konvertiert werden.
+"Single-Page", weil der Nutzer der Webseite immer auf einer Seite bleibt, welche aber Javascript ausführt um neuen HTML code zu generieren. React verwendet hier, anders wie z.B. Angular, eine Erweiterung von Javascript namens JSX, welche es ermöglicht HTML in Javascript zu schreiben.
+Ein Merkmal von React ist das klare Definieren von State (Zustand) einer Komponente. Änderungen an Variablen die über diesen Mechanismus definiert wurden, führen zu einer Aktualisierung von Elementen der Obefläche, in welchem diese Variable vorkommt.
+
+- Funktional?
+- Verwendet für andere Frameworks (Preact, Reagent, Reframe, reacl-c)
+* Was ist reacl-c
+reacl-c ist ein UI Framework für ClojureScript welches React verwendet.
+* Was sind Monaden
 * Implementierung
+** Was ist die letzte Cont?
+** Wie kommt man von "Item Welt" zu "Prog Welt"
+* Resultat
 * Alternativen
 * Optimierungen
 ** Tail Recursion
+Weder Java noch Javascript bieten Tail Call Optimization an. Dies ist aber eine fundamentales Werkzeug in einer Funktionales Sprache. Mit einer korrekt Implementierten Tail Call Recursion Optimiation kann sichergestellt werden, das ein monadisches Bind beliebig hintereinander geschaltet werden kann, ohne das der Stack überlaufen würde.
+Da die Bind Logik von dem Entwickler abstrahiert ist, ist es wichtig diese Funktionalität trotz fehlender Unterstützung der Sprache, zur verfügung zu stellen.
+*** Trampoline
