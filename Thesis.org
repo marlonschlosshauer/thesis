@@ -8,26 +8,30 @@
 #+OPTIONS: broken-links:auto
 
 * Motivation
-* Gewünschtes Verhalten
-* Momentar Stand
-* Was ist React
-React ist ein populäres UI Framework von Facebook welches in Javascript geschrieben ist.
-Wie Angular und Vue ist React eine Single-Page-Application (SPA). Statt Webseiten in HTML zu schreiben, ermöglicht es React dem Entwickler in Javascript Komponenten zu definieren, welche später dynamisch von dem Framework zu HTML konvertiert werden.
-"Single-Page", weil der Nutzer der Webseite immer auf einer Seite bleibt, welche aber Javascript ausführt um neuen HTML code zu generieren. React verwendet hier, anders wie z.B. Angular, eine Erweiterung von Javascript namens JSX, welche es ermöglicht HTML in Javascript zu schreiben.
-Ein Merkmal von React ist das klare Definieren von State (Zustand) einer Komponente. Änderungen an Variablen die über diesen Mechanismus definiert wurden, führen zu einer Aktualisierung von Elementen der Obefläche, in welchem diese Variable vorkommt.
+Making components reusable is a common practice in modern frontend development. Often used to encapsulate styling and functionability into an easy to use component. While undoubtedly an essential feature, it is important to point out that, in modern Frameworks like React, this is used to either build a component or to compose multiple components into a single component.
+Often the applications that are powered by these frameworks are a digitalization of a workflow, where the order of components, as in which component is shown after which other component, is crucial.
+Yet the ability to build such workflows is often poorly or not at all supported. Given the lack of support and possible applications, it is of high interest to find a way to compose flows of components, easier.
+* What is React
+React is a popular UI framework developed by Facebook and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
+An advantage of a SPA design is that commonly used components, like a header and footer, can be shared over multiple pages without having to be retransmitted, as the JavaScript code is still in memory. In such a system navigation does not change the current page, but rather tells React to build the desired next page from the JSX definition. Besides requiring less bandwith on succesive visits, this also leads to better response times on page visits after the initial load, as those pages are also already in memory.
 
-- Funktional?
-- Verwendet für andere Frameworks (Preact, Reagent, Reframe, reacl-c)
-* Was ist reacl-c
-reacl-c ist ein UI Framework für ClojureScript welches React verwendet.
-* Was sind Monaden
-* Implementierung
-** Was ist die letzte Cont?
-** Wie kommt man von "Item Welt" zu "Prog Welt"
-* Resultat
-* Alternativen
-* Optimierungen
-** Tail Recursion
+Another important feature of React is that the developer must explicitly declare the state of a component. This is used to improve performance, as only components which come in contact with that state are updated upon a change of values.
+
+React is used as a basis for other frameworks like Preact, Reagent, reacl-c and others.
+* What is reacl-c
+reacl-c is a UI framework for ClojureScript. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to make the most of Clojures immutable datastructures. One of it's goal is to make components highly composible. Like React, reacl-c allows the defining of components, named items in reacl-c. These items can have child items, thus forming a tree, like in React.
+A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which reacts to the action. This allows items to be not only just composed of functions, but also be independend of what any parent item might do with them. Instead of having to pass down a function to, e.g manipulate state, the component can give upwards an action to trigger the same functionability in the parent.
+As an example: Take a button that toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
+
+Often another package like Redux is used to fix the problem of having to passdown functions in React. Instead of saving state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+* Current State
+* Desired Behaviour
+* What are Monads
+* Implementation
+** What is the result of the last Continutation?
+** How does the "Item" World and "Prog" World interact?
+* Optimisation
+** Tail Call Recursion Optimisation
 Weder Java noch Javascript bieten Tail Call Optimization an. Dies ist aber eine fundamentales Werkzeug in einer Funktionales Sprache. Mit einer korrekt Implementierten Tail Call Recursion Optimiation kann sichergestellt werden, das ein monadisches Bind beliebig hintereinander geschaltet werden kann, ohne das der Stack überlaufen würde.
 Da die Bind Logik von dem Entwickler abstrahiert ist, ist es wichtig diese Funktionalität trotz fehlender Unterstützung der Sprache, zur verfügung zu stellen.
 *** Trampoline
