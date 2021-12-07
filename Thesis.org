@@ -1,8 +1,7 @@
-#+TITLE: Komposition von UI Elementen in reacl-cl mittels Monaden
+#+TITLE: Composition of UI elements in reacl-c using monads
 #+AUTHOR: Marlon Schlosshauer, Angewandte Informatik, Hochschule Offenburg
 #+LANGUAGE: de
 #+OPTIONS: \n:t
-#+LATEX_HEADER: \usepackage[margin=0.5in]{geometry}
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
 #+LATEX_HEADER: \renewcommand*{\contentsname}{Inhaltsverzeichnis}
 #+OPTIONS: broken-links:auto
@@ -24,14 +23,25 @@ A key difference to React, is that items can emit actions if an event occurs. Th
 As an example: Take a button that toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
 
 Often another package like Redux is used to fix the problem of having to passdown functions in React. Instead of saving state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+* What is a monad
+Monads can be described as chainable operations on common types which either transform data or control flow (as in step of the program). In this case they can be both, but are most likely used to control which things are executed and shown when.
+A popular use case for monads is in the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ keyword, instead we can ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
+#+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= (bind) operator, the chain will stop if one of the calls fails.
+#+begin_src haskell
+  getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
+#+end_src
 * Current State
 * Desired Behaviour
-* What are Monads
 * Implementation
+** Whats the semantic of the functions?
 ** What is the result of the last Continutation?
 ** How does the "Item" World and "Prog" World interact?
 * Optimisation
-** Tail Call Recursion Optimisation
-Weder Java noch Javascript bieten Tail Call Optimization an. Dies ist aber eine fundamentales Werkzeug in einer Funktionales Sprache. Mit einer korrekt Implementierten Tail Call Recursion Optimiation kann sichergestellt werden, das ein monadisches Bind beliebig hintereinander geschaltet werden kann, ohne das der Stack überlaufen würde.
-Da die Bind Logik von dem Entwickler abstrahiert ist, ist es wichtig diese Funktionalität trotz fehlender Unterstützung der Sprache, zur verfügung zu stellen.
-*** Trampoline
+** Tail Call Optimisation
+Neither Java nor JavaScript, the the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is how ever a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
+It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
+*** Tail Call Optimisation in ClojureScript
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does ship with the ~loop~ function which enables TCO for calls that are done at the tail end of the body, passed to the function. This kind of TCO is called a trampoline, because instead of stepping deeper and deeper into nested function calls, the ~loop~ is calling the body, which returns a function. That function is then called in a loop until a certain condition is passed. The called function returns another function in every invocation, rather than just a value.
+*** Own TCO implementation
+While ~loop~ provides a perfectly fine TCO for synchronose functions, in order to work with the asynchronoes, action driven approach that reacl-c uses, a custom implementation needed to developed.
+The principle of the trampoline remains, but instead of just calling the function, it is required to pass a Prog upwards and wait for a commit from the Prog.
