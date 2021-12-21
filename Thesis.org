@@ -12,16 +12,16 @@ Often the applications that are powered by these frameworks are a digitalization
 Yet the ability to build such workflows is often poorly or not at all supported. Given the lack of support and possible applications, it is of high interest to find a way to compose flows of components, easier.
 * What is React
 React is a popular UI framework developed by Facebook and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
-#+begin_src js
+#+begin_src javascript
   const profile = ({name, age, image}) => {
       return (
-	  <div className="profile-container">
-	    <div className="profile-info-container">
+	      <div className="profile-container">
+	      <div className="profile-info-container">
 	      <p>{name}</p>
 	      <p>Age: {age}</p>
-	    </div>
-	    <img alt={`Avatar of ${name}`} src={image}/>
-	  </div>
+	      </div>
+	      <img alt={`Avatar of ${name}`} src={image}/>
+	      </div>
       )
   }
 #+end_src
@@ -36,9 +36,43 @@ React is also a popular basis for other frameworks like Preact, Reagent, reacl-c
 * What is reacl-c
 reacl-c is a UI framework for ClojureScript. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage  most of Clojures immutable datastructures. One of it's goal is to make components highly composible. Like React, reacl-c allows the defining of components, named items in reacl-c. These items can have child items, thus forming a tree, like in React.
 A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which reacts to the action. This allows items to be not only just composed of functions, but also be independend of what any parent item might do with them. Instead of having to pass down a function to, e.g manipulate state, the component can give upwards an action to trigger the same functionability in the parent.
-As an example: Take a button that toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
+As an example: A button toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
+#+begin_src clojure
+  (defn-item abstract-button [text]
+    (dom/button {:onClick (fn [] (core/return :action :pressed))} text))
+#+end_src
+#+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
+With this style of communication, only the parent needs to know the child. The developer does not need to tell the child where to send the action. Reacl-c takes care of that work for us.
 
-Often another package like Redux is used to fix the problem of having to passdown functions in React. Instead of saving state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+In React often another package like Redux is used to fix the problem of having to passdown functions. Instead of saving state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+** How an Item is made
+Reacl-c is made up of so called Items and functions which operate on these Items. They're much like Components in React. They can be defined as functions, where they can take arguments. Items can also be defined as just Items, that do not take arguments. See the chapter ~3.3~ to learn why arguments are as important as in React.
+To make an Item we can either use the ~defn-item~ or ~def-item~ functions, which have the similiar meaning as the Clojure ~defn~ (to define a function) and ~def~ (to define a constant). Both functions want a name and a body, which returns an Item. Reacl-c already gives us functions like ~empty~ and ~fragment~ to create empty or just container Items.
+The later can be filled with other Items. The framework comes with the ~dom~ namespace which provides all DOM HTML components wrapped as Items. Like earlier, I can use ~(dom/button "click")~ to create a HTML button. Or ~(dom/div)~ to make a div. I can wrap my button in a div like so ~(dom/div (dom/button "click"))~.
+So reacl-c does not use JSX to create Items. It also does not use the Hiccup syntax like many other ClojureScript Frameworks that are based on React.
+** Handling actions
+** Managing State
+Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle the problem. In any case, much like with React, the developer can easily make out if a component is using and changing state.
+
+State in reacl-c can be shared in different, more complex, ways. Firstly, while a component might have state, it is not accessable to the developer until they use the ~dynamic~ function. This has the benefit of instantly making a component that displays state, stand out, as it will have a call to ~dynamic~ inside of it. Secondly, state is split into two categories:
+- Inner state, which is defined inside of the component by using either ~with-state-as~, ~local-state~ or ~isolate-state~.
+- Outter state, or state that is passed down from the parent component.
+
+The inheritance of state from the parent happens automatically, but can be controlled by the parent through lenses.
+Lastly, the parent can also pass data to it's children if they're a function, which takes arguments. This is a lot like in React. And just like in React, changing the passed values without using the correct function does not cause a state change. Thanks to Clojure being immutable, it is actually not even possible to change these values.
+
+While ~with-state-as~ allows us to add additional state to our component, the ~dynamic~ function gives us access to all the state that this component has to offer. These two functions are often used together, to create a component that needs to both have and react to state.
+#+begin_src clojure
+  (c/defn-item name-input [placeholder]
+    (c/local-state
+     ""
+     (c/dynamic
+      (dom/input
+       {:placeholder placeholder
+	:value inner
+	:onChange (fn [[outter inner] e] (c/return :state [outter (.. e -target -value)]))}))))
+#+end_src
+#+CAPTION: Using ~local-state~ to create an inner state of an empty string, which is being changed by the ~onChange~ callback of the input.
 * What is a monad
 Monads can be described as chainable operations on common types which either transform data or control flow (as in step of the program). In this case they can be both, but are most likely used to control which things are executed and shown when.
 A popular use case for monads is in the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ keyword, instead we can ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
@@ -77,7 +111,7 @@ A common way to implement this, is to use a switch statement in combination with
 #+end_src
 A simple implementation of a component which shows multiple components succesively can be seen in Listing 1. ~personalInfo~, ~verificationCode~, ~showAccountInfo~ are components will be shown one after another. The ~step~ variable stores the which variable should currently be shown. The ~value~ variable stores the result of the last step. In order to progress, a callback named ~cb~ needs to be passed to all components, as the point at which the child components are finished can't be deteremed from outside (in React). The steps are arranged in sequential order, but it is also possible to move non-linearly or even revisit components mutliple times. This does mean the callback function needs to map from where which component is being routed. This will be examined in more detail in Listing 2.
 Another property to keep in mind is that the components need to be able to at least take a callback function for when they're done. This means components might need to be changed to fit our new logic.
-#+begin_src clojurescript
+#+begin_src clojure
   (defn login []
     (handle-action
      (dynamic
@@ -97,14 +131,14 @@ Another property to keep in mind is that the components need to be able to at le
 Listing 2 shows the example from Listing 1, but instead of using an increasing number to keep track of which step the component is on, a keyword is used which could be used to components in a non-linear order, loop back to the inital component after visiting the final component, or showing a component multiple times (with different values each time). But this means a second switch statement is needed, to map the transitions from one component to another. This makes adding components more difficult, as two places need to be maintained to do so. It is also very easy to lose track of which component will be shown next, if a complex order is choosen, as no support is being provided by either the language or the framework.
 * Desired Behaviour
 The design goals are to create a both easy to use and powerful tool to compose flows together into a single entitiy. For the part that will allow the executing of the composed flow, inspiration is taken from the ClojureScript ~let~ function, which has an easy to use syntax thanks to the use of a macros. As seen in Listing 3, a ~let~ is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
-#+begin_src clojurescript
+#+begin_src clojure
   (let [one 1
 	two (+ 1 one)
 	three (inc (* two one))]
     (+ one two three))
 #+end_src
 So in our example ~one~, ~two~, ~three~ are at first only names, but are bound to the values given on the right, inside of the body. This is actually just syntactical sugar. The same could be expressed with annonymous functions as seen in Listing 4.
-#+begin_src clojurescript
+#+begin_src clojure
   ((fn [one]
      ((fn [two]
 	((fn [three]
@@ -119,13 +153,13 @@ Future pairs should also be able to access the value returned by the earlier pai
 Of-course individual values in the ~mapping:value~ pairs should also be able to be composible with other values, so one step in one flow, can be an entire different, nested, flow.
 
 Listings 5 shows our earlier example implemented with the desired functionality given by the framework. Note how little code is needed
-#+begin_src clojurescript
+#+begin_src clojure
   (runner [personal (personal-info)
 	   verification (verification-code personal)]
 	  (show-account-info [personal verification]))
 #+end_src
 A possible alternative to this would be to omit the body entirely and instead use the element previously placed in the body, as the last element in our ~mapping:value~ pairs list.
-#+begin_src clojurescript
+#+begin_src clojure
   (runner [personal (personal-info)
 	   verification (verification-code personal)
 	   info (show-account-info [personal verification])])
@@ -142,8 +176,20 @@ A possible alternative to this would be to omit the body entirely and instead us
 - show
 - runner
 ** Whats the semantic of the functions?
+** How are errors handled?
+** Should early termination be possible?
+Seeing how the use-case is all about making it possible to compose steps together, should it be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
 ** What is the result of the last continutation?
-Because reacl-c allows us to emit actions which propagate up the element tree, we can do more than to just display the result on the screen or have the data be returned from the ~runner~ in it's raw form. The ~runner~ could hold on the last ~Prog~, disply it and propagate the result of it upwards. This might be useful if the ~runner~ consists of a lot of chained together HTTP requests, as the logic to capture the result of the requets would have to live in an action handler anyways.
+There are multiple options for what this behaviour could look like. The most obivous answer to the question, of what a ~runner~ will return at the end, is that it will return nothing. The content of the last ~Prog~ will be returned and therefor be shown indefinitely. This certainly works but doesn't realize the full potential of the idea, of using monads to chain flows of ~Progs~ together.
+A more interesting implementation would be to let the developer return whatever in the last continuation of the last ~Bind~. So instead of unwrapping a ~Prog~ into an ~Item~ to use with other ~reacl-c~ functions, the ~runner~ could return a normal value at the end. This has the benefit of making out ~runner~ be more, than just a display that will turn in to a dead end. A possible use-case would be the chaining together HTTP requests where only the result is important.
+However useability would suffer, as the developer would need to check if the received value from a ~runner~ is an ~Item~, which should be displayed, or a value, which is to be used for further transformitive purposes.
+An extension of this idea would be to allow the developer to pass in a body as the last parameter, much like when ~let~ is used. If a body function is provided, the function is given access to all of the intermediate results of the ~Progs~ in the ~runner~ and the result of the body function is returned. If no body is provided, no result will be returned, the last ~Prog~ will just be displayed indefinitely. Like with the previous implementation, this would also suffer from needing to pattern-match the returned value.
+
+In many frontend frameworks these three options would be all that is possible, but because reacl-c allows us to emit actions which propagate up the item tree, we can do more than to just display the result on the screen or have the data be returned from the ~runner~ in it's raw form. Thanks to this, the result of the last continuation could be emitted as an action and be caught by a ~handle-action~ function which wraps the ~runner~. This is not perfect either. One might think that this would mean the pattern-matching might be optional, but it is not. In ~reacl-c~ an action must be caught by something. If it is not and the action reaches the top level item, an error is thrown. By allowing to emit the result it is possible to accidentally send an action upwards, by returning something in the last continuation from within a ~runner~ and to be unaware that this ~runner~ would need to be wrapped by an ~handle-action~ function, because there is no way to warn the developer of this (like with using Exceptions in Java). But, one could argued that using ~handle-action~ to catch the returned value, instead of using a function around the ~runner~, like ~cond~, is more idiomatic, as the developers are already using ~handle-action~ to catch actions in the entire ~reacl-c~ app.
+Again this implementation could be extended by allowing for the last parameter to be a body function, like with ~let~. If the body function is present, the developer can be sure that the ~runner~ needs to be wrapped by a ~handle-action~. If the ~runner~ is only made up of ~Progs~, the developer does not need to do anything. This makes it possible to clearly express when something needs to be caught, but is open for improvement as it requires additional knowledge about how ~runner~ works. There is, again, also no way to warn a developer of they have not wrapped a ~runner~ with an ~handle-action~, if they forgot too.
+
+These options all come with downsides. It is important to look at the use-case of the ~runner~ in real applications, to determine which is suited best for use.
+Like discussed earlier, the most common use-case will be the orchestrating of multiple steps, that all happen in a rigid order.
 
 ** How does the "Item" world and "Prog" world interact?
 * Optimisation
