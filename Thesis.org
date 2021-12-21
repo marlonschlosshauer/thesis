@@ -12,12 +12,27 @@ Often the applications that are powered by these frameworks are a digitalization
 Yet the ability to build such workflows is often poorly or not at all supported. Given the lack of support and possible applications, it is of high interest to find a way to compose flows of components, easier.
 * What is React
 React is a popular UI framework developed by Facebook and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
+#+begin_src js
+  const profile = ({name, age, image}) => {
+      return (
+	  <div className="profile-container">
+	    <div className="profile-info-container">
+	      <p>{name}</p>
+	      <p>Age: {age}</p>
+	    </div>
+	    <img alt={`Avatar of ${name}`} src={image}/>
+	  </div>
+      )
+  }
+#+end_src
+#+CAPTION: Example of JSX to define a profile
+
 An advantage of a SPA design is that commonly used components, like a header and footer, can be shared over multiple pages without having to be retransmitted, as the JavaScript code is still in memory. In such a system navigation does not change the current page, but rather tells React to build the desired next page from the JSX definition. Besides requiring less bandwith on succesive visits, this also leads to better response times on page visits after the initial load, as those pages are also already in memory.
 
 Another important feature of React is that the developer must explicitly declare the state of a component. This is used to improve performance, as only components which
 which are effected by a state change are freshly render. Old components remain untouched in memory.
 
-React is a popular basis for other frameworks like Preact, Reagent, reacl-c and others.
+React is also a popular basis for other frameworks like Preact, Reagent, reacl-c and others.
 * What is reacl-c
 reacl-c is a UI framework for ClojureScript. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage  most of Clojures immutable datastructures. One of it's goal is to make components highly composible. Like React, reacl-c allows the defining of components, named items in reacl-c. These items can have child items, thus forming a tree, like in React.
 A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which reacts to the action. This allows items to be not only just composed of functions, but also be independend of what any parent item might do with them. Instead of having to pass down a function to, e.g manipulate state, the component can give upwards an action to trigger the same functionability in the parent.
@@ -41,7 +56,7 @@ In Haskell notation these functions are writen as follows:
   return a = M a
 #+end_src
 * Current State
-Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, in all cases this is limited to creating a new component that just displays all composed components. To create a component which initially display some component and later changes to another component, after a certain event has been reached, the logic doing the change from one to the other component, needs to be implemented by hand.
+Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, in all cases this is limited to creating a new component that just displays all composed components at the same time. To create a component which initially display some component and later changes to display another component, after a certain event has been reached, the logic doing the change from one to the other component, needs to be implemented by hand.
 A common way to implement this, is to use a switch statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occured, the component changes the state to allow for the next component to be rendered.
 #+begin_src javascript
   const login = () => {
@@ -123,11 +138,13 @@ A possible alternative to this would be to omit the body entirely and instead us
 - Prog
 *** Functions
 - return
-- bind
+- then
 - show
 - runner
 ** Whats the semantic of the functions?
 ** What is the result of the last continutation?
+Because reacl-c allows us to emit actions which propagate up the element tree, we can do more than to just display the result on the screen or have the data be returned from the ~runner~ in it's raw form. The ~runner~ could hold on the last ~Prog~, disply it and propagate the result of it upwards. This might be useful if the ~runner~ consists of a lot of chained together HTTP requests, as the logic to capture the result of the requets would have to live in an action handler anyways.
+
 ** How does the "Item" world and "Prog" world interact?
 * Optimisation
 ** Tail Call Optimisation
@@ -138,3 +155,10 @@ While ClojureScript isn't offering TCO out-of-the-box for every function call, i
 *** Own TCO implementation
 While ~loop~ provides a perfectly fine TCO for synchronose functions, in order to work with the asynchronoes, action driven approach that reacl-c uses, a custom implementation needed to developed.
 The principle of the trampoline remains, but instead of just calling the function, it is required to pass a Prog upwards and wait for a commit from the Prog.
+*** Consequences of TCO
+- Need to wrap "binds" to enable trampoline
+- how to handle nested bind?
+- Possible to traverse but potentially expensive book keeping because of continuation
+- always need runner!
+- ~(Prog a >>= Prog b) >>= Prog c~ not possible?
+- should user have option to run something without TC or should they only have TC functions?
