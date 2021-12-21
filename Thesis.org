@@ -12,6 +12,7 @@ Often the applications that are powered by these frameworks are a digitalization
 Yet the ability to build such workflows is often poorly or not at all supported. Given the lack of support and possible applications, it is of high interest to find a way to compose flows of components, easier.
 * What is React
 React is a popular UI framework developed by Facebook and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
+#+CAPTION: Example of JSX to define a profile
 #+begin_src javascript
   const profile = ({name, age, image}) => {
       return (
@@ -25,7 +26,6 @@ React is a popular UI framework developed by Facebook and written in JavaScript.
       )
   }
 #+end_src
-#+CAPTION: Example of JSX to define a profile
 
 An advantage of a SPA design is that commonly used components, like a header and footer, can be shared over multiple pages without having to be retransmitted, as the JavaScript code is still in memory. In such a system navigation does not change the current page, but rather tells React to build the desired next page from the JSX definition. Besides requiring less bandwith on succesive visits, this also leads to better response times on page visits after the initial load, as those pages are also already in memory.
 
@@ -37,11 +37,11 @@ React is also a popular basis for other frameworks like Preact, Reagent, reacl-c
 reacl-c is a UI framework for ClojureScript. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage  most of Clojures immutable datastructures. One of it's goal is to make components highly composible. Like React, reacl-c allows the defining of components, named items in reacl-c. These items can have child items, thus forming a tree, like in React.
 A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which reacts to the action. This allows items to be not only just composed of functions, but also be independend of what any parent item might do with them. Instead of having to pass down a function to, e.g manipulate state, the component can give upwards an action to trigger the same functionability in the parent.
 As an example: A button toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
+#+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 #+begin_src clojure
   (defn-item abstract-button [text]
     (dom/button {:onClick (fn [] (core/return :action :pressed))} text))
 #+end_src
-#+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 With this style of communication, only the parent needs to know the child. The developer does not need to tell the child where to send the action. Reacl-c takes care of that work for us.
 
 In React often another package like Redux is used to fix the problem of having to passdown functions. Instead of saving state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
@@ -62,6 +62,7 @@ The inheritance of state from the parent happens automatically, but can be contr
 Lastly, the parent can also pass data to it's children if they're a function, which takes arguments. This is a lot like in React. And just like in React, changing the passed values without using the correct function does not cause a state change. Thanks to Clojure being immutable, it is actually not even possible to change these values.
 
 While ~with-state-as~ allows us to add additional state to our component, the ~dynamic~ function gives us access to all the state that this component has to offer. These two functions are often used together, to create a component that needs to both have and react to state.
+#+CAPTION: Using ~local-state~ to create an inner state of an empty string, which is being changed by the ~onChange~ callback of the input.
 #+begin_src clojure
   (c/defn-item name-input [placeholder]
     (c/local-state
@@ -72,11 +73,10 @@ While ~with-state-as~ allows us to add additional state to our component, the ~d
 	:value inner
 	:onChange (fn [[outter inner] e] (c/return :state [outter (.. e -target -value)]))}))))
 #+end_src
-#+CAPTION: Using ~local-state~ to create an inner state of an empty string, which is being changed by the ~onChange~ callback of the input.
 * What is a monad
 Monads can be described as chainable operations on common types which either transform data or control flow (as in step of the program). In this case they can be both, but are most likely used to control which things are executed and shown when.
 A popular use case for monads is in the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ keyword, instead we can ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
-#+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= (bind) operator, the chain will stop if one of the calls fails.
+#+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= operator, the chain will stop if one of the calls fails.
 #+begin_src haskell
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
 #+end_src
