@@ -256,9 +256,10 @@ Like discussed earlier, the most common use-case will be the orchestrating of mu
 Neither Java nor JavaScript, the the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is how ever a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
 It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
 *** Tail Call Optimisation in ClojureScript
-While ClojureScript isn't offering TCO out-of-the-box for every function call, it does ship with the ~loop~ function which enables TCO for calls that are done at the tail end of the body, passed to the function. This kind of TCO is called a trampoline, because instead of stepping deeper and deeper into nested function calls, the ~loop~ is calling the body, which returns a function. That function is then called in a loop until a certain condition is passed. The called function returns another function in every invocation, rather than just a value.
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
+Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. In a loop the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends.
 *** Own TCO implementation
-While ~loop~ provides a perfectly fine TCO for synchronose functions, in order to work with the asynchronoes, action driven approach that reacl-c uses, a custom implementation needed to developed.
+While ~loop~ provides a perfectly fine TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
 The principle of the trampoline remains, but instead of just calling the function, it is required to pass a Prog upwards and wait for a commit from the Prog.
 *** Consequences of TCO
 - Need to wrap "binds" to enable trampoline
