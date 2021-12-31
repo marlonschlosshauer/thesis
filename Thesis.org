@@ -49,8 +49,12 @@ which are effected by a state change are freshly render. Old components remain u
 
 React is also a popular basis for other frameworks like Preact, Reagent, reacl-c and others.
 * What is reacl-c
-reacl-c is a UI framework for ClojureScript. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage  most of Clojures immutable datastructures. One of it's goal is to make components highly composible. Like React, reacl-c allows the defining of components, named items in reacl-c. These items can have child items, thus forming a tree, like in React.
-A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which reacts to the action. This allows items to be not only just composed of functions, but also be independend of what any parent item might do with them. Instead of having to pass down a function to, e.g manipulate state, the component can give upwards an action to trigger the same functionability in the parent.
+Reacl-c is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage of Clojures immutable datastructures. Like React, reacl-c allows the defining of components, called "items" in reacl-c. These items can have child items, thus forming a tree, just like in React.
+
+To make composing of items easier, reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outter state, which is implicitely passed down from the parent to the child. The later puts the emphasis on the parent.
+
+A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which captures the action and reacts to it. This enables the developer to define a (child) item completely independently from their potential future parents, leading to more reusable and more composible components.
+Instead of having the parent pass down a function to, e.g manipulate state, the component can emit an action upwards and trigger the same functionability in the parent. Another benefit is that the parent component can adapt the output of the emitted action further.
 As an example: A button toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
 #+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 #+begin_src clojure
@@ -59,24 +63,56 @@ As an example: A button toggles an "option" from ~true~ to ~false~ and back. The
 #+end_src
 With this style of communication, only the parent needs to know the child. The developer does not need to tell the child where to send the action. Reacl-c takes care of that work for us.
 
-In React often another package like Redux is used to fix the problem of having to passdown functions. Instead of saving state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
-** How an Item is made
-Reacl-c is made up of so called Items and functions which operate on these Items. They're much like Components in React. They can be defined as functions, where they can take arguments. Items can also be defined as just Items, that do not take arguments. See the chapter ~3.3~ to learn why arguments are as important as in React.
-To make an Item we can either use the ~defn-item~ or ~def-item~ functions, which have the similiar meaning as the Clojure ~defn~ (to define a function) and ~def~ (to define a constant). Both functions want a name and a body, which returns an Item. Reacl-c already gives us functions like ~empty~ and ~fragment~ to create empty or just container Items.
-The later can be filled with other Items. The framework comes with the ~dom~ namespace which provides all DOM HTML components wrapped as Items. Like earlier, I can use ~(dom/button "click")~ to create a HTML button. Or ~(dom/div)~ to make a div. I can wrap my button in a div like so ~(dom/div (dom/button "click"))~.
-So reacl-c does not use JSX to create Items. It also does not use the Hiccup syntax like many other ClojureScript Frameworks that are based on React.
-** Handling actions
-** Managing State
-Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle the problem. In any case, much like with React, the developer can easily make out if a component is using and changing state.
+To make components even more composible the parent can not just control the result, it can also control which state is given to it's children in the first place. The parent can therefor handle the child items like they're pure functions, that together with the parent compose to a new item.
 
-State in reacl-c can be shared in different, more complex, ways. Firstly, while a component might have state, it is not accessable to the developer until they use the ~dynamic~ function. This has the benefit of instantly making a component that displays state, stand out, as it will have a call to ~dynamic~ inside of it. Secondly, state is split into two categories:
+In React often another package like Redux is used to fix the problem of having to passdown functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+** How an Item is made
+Reacl-c is made up of so called items and functions which operate on these items. Much like in React they are instructions that represent HTML elements that can be nested and can hold state.
+To make an item reacl-c provides a namespace called ~dom~ that contains all the necessary DOM HTML components already defined as items. All that is needed to create a headline is ~(dom/h2 "Headline")~. To make more complicated items, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple items.
+#+CAPTION: Showcasing composition of multiple items into one by using a div
+#+begin_src clojure
+  (dom/div
+   (dom/h2 "Hello")
+   (dom/p {:class "subtitle"} "This is some text")
+   (dom/button "Subscribe"))
+#+end_src
+There are other functions which, much like div, don't add something visually but change the behaviour of the item. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few.
+
+Items can also receive a map as their first argument. With this map things like CSS classes, inline-style can be provided. If the item is an interactive one like Buttons and inputs (to name a few), the keywords ~onChange~ and ~onChange~ can be used to register a callback.
+** Emitting and handling actions
+Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this is a crucial feature to make items composible.
+To emit an action the child needs to call ~core/return~ with the ~:action~ keyword and the desired payload. The action will travel upwards until it's caugh by a ~core/handle-action~. Handle action takes two arguments, first an item to wrap (and receive actions from) and second a function that defines what do to when it received an action.
+#+CAPTION: The action emitted by the buzzer item is caught in the parent item
+#+begin_src clojure
+  (def buzzer
+    (dom/dom
+     (dom/h3 "Press buzzer to notify parent")
+     (dom/button {:onClick (fn [] (c/return :action true))} "Buzzer")))
+
+  (def parent
+    (core/local-state
+     {:pressed? false}
+     (c/handle-action
+      (core/dynamic
+       (fn [[outter inner]]
+	 (dom/div
+	  (dom/p (str "The button has" (if (:pressed? inner) "been pressed" "not been pressed")))
+	  buzzer)))
+      (fn [ac msg]
+	(c/return :state {:pressed? msg})))))
+#+end_src
+It is important that the function which given to ~core/handle-action~ calls ~core/return~ at the end to either notify a parent of itself or change state, as an action is just a side-effect.
+** How state is managed
+Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle the problem. Thankfully, much like with React, the developer can easily make out if a component is using or changing state.
+
+State in reacl-c can be shared in different, more complex, ways.
+Firstly, while a component might have state, it is not accessable to the developer until they use the ~core/dynamic~ function. This has the benefit of instantly marking a component as one that needs and works with state.
+Secondly, state is split into two categories:
 - Inner state, which is defined inside of the component by using either ~with-state-as~, ~local-state~ or ~isolate-state~.
 - Outter state, or state that is passed down from the parent component.
+The inheritance of state from the parent happens implicitely, but can be controlled by the parent through lenses (with the ~core/focus~ function). Like mentioned earlier, this part of the reason why reacl-c items are so composible.
 
-The inheritance of state from the parent happens automatically, but can be controlled by the parent through lenses.
-Lastly, the parent can also pass data to it's children if they're a function, which takes arguments. This is a lot like in React. And just like in React, changing the passed values without using the correct function does not cause a state change. Thanks to Clojure being immutable, it is actually not even possible to change these values.
-
-While ~with-state-as~ allows us to add additional state to our component, the ~dynamic~ function gives us access to all the state that this component has to offer. These two functions are often used together, to create a component that needs to both have and react to state.
+While ~with-state-as~ allows us to add additional state to our component, the ~dynamic~ function gives us access to all the state that this component has to offer. These two functions are often used together, to create a component that needs to both have local state and react to it.
 #+CAPTION: Using ~local-state~ to create an inner state of an empty string, which is being changed by the ~onChange~ callback of the input.
 #+begin_src clojure
   (c/defn-item name-input [placeholder]
@@ -88,6 +124,7 @@ While ~with-state-as~ allows us to add additional state to our component, the ~d
 	:value inner
 	:onChange (fn [[outter inner] e] (c/return :state [outter (.. e -target -value)]))}))))
 #+end_src
+To change state the ~core/return~ function is used again. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
 * What is a monad
 Monads can be described as chainable operations on common types which either transform data or control flow (as in step of the program). In this case they can be both, but are most likely used to control which things are executed and shown when.
 A popular use case for monads is in the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ keyword, instead we can ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
