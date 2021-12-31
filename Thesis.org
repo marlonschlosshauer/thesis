@@ -7,9 +7,24 @@
 #+OPTIONS: broken-links:auto
 
 * Motivation
-Making components reusable is a common practice in modern frontend development. Often used to encapsulate styling and functionability into an easy to use component. While undoubtedly an essential feature, it is important to point out that, in modern Frameworks like React, this is used to either build a component or to compose multiple components into a single component.
-Often the applications that are powered by these frameworks are a digitalization of a workflow, where the order of components, as in which component is shown after which other component, is crucial.
-Yet the ability to build such workflows is often poorly or not at all supported. Given the lack of support and possible applications, it is of high interest to find a way to compose flows of components, easier.
+Components are an important tool in modern frontend development. In traditional frameworks we can define something as an component to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
+
+Modern frontend applications have gone beyond just serving information with HTML. They act as a digitalization of a workflow, where the order of components, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. This is to say, we say which steps we have and together they form a sequence.
+The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step, rather the result of each step is fed into the next step.
+An example of a sequential composition would be to first show a sign-in component, then after a successful login show the actual component the user wanted to access.
+Composing sequentially isn't just an optimization, it's a fundamental building block of how an application is supposed to operate. Just how we need the ability to show both an input field and a button at the same time (to confirm the input), we also need the ability to model what happens after that button has been pressed.
+
+But despite the need, the actual support for sequential composibility by modern frameworks is either non existent or very poor.
+While some of the desired result can be achieved by making clever use of parallel composibility or using traditional links and routing, neither is truly sequentially composible and both suffer from multiple issues, some of which are:
+- They don't yield things which we can compose further (into more complicated workflows)
+- Reusing these components leads to a lot more abstraction
+- It produces code that becomes difficult to understand at a glance
+- Most importantly the logic for advancing the steps and the book-keeping lives now inside the component with the parallel composing logic
+There are more issues like the inability to easily test just the order of the components and the huge time cost required to refactor constructs of this nature.
+
+Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we can use another axis to control our programs and build complicated hierchies, where an application consistst of one sequentially composed component, that inside of it has either more sequentially or parallel composed components.
+Not only would our code be more expressive and more concise, bugs could also be reduced because the systems we build can be represented more truthfully by the provided api of the framework. But most importantly we could build workflows out of smaller flows or other workflows entirely and share these across our applications.
+Given the lack of support and possible application it is of high interest to find a way to compose sequentially, easier.
 * What is React
 React is a popular UI framework developed by Facebook and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
 #+CAPTION: Example of JSX to define a profile
