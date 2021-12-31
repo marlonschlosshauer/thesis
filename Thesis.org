@@ -1,10 +1,14 @@
 #+TITLE: Composition of UI elements in reacl-c using monads
-#+AUTHOR: Marlon Schlosshauer, Angewandte Informatik, Hochschule Offenburg
-#+LANGUAGE: de
+#+AUTHOR: Marlon Schlosshauer, Applied Computer Science, Hochschule Offenburg
+#+LANGUAGE: english
 #+OPTIONS: \n:t
-#+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
-#+LATEX_HEADER: \renewcommand*{\contentsname}{Inhaltsverzeichnis}
+#+OPTIONS: toc:nil
 #+OPTIONS: broken-links:auto
+#+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
+
+#+LATEX: \newpage
+#+TOC: headlines
+#+LATEX: \newpage
 
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as an component to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
