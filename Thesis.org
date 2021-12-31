@@ -192,6 +192,7 @@ These options all come with downsides. It is important to look at the use-case o
 Like discussed earlier, the most common use-case will be the orchestrating of multiple steps, that all happen in a rigid order.
 
 ** How does the "Item" world and "Prog" world interact?
+** Limitations
 * Optimisation
 ** Tail Call Optimisation
 Neither Java nor JavaScript, the the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is how ever a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
@@ -208,3 +209,6 @@ The principle of the trampoline remains, but instead of just calling the functio
 - always need runner!
 - ~(Prog a >>= Prog b) >>= Prog c~ not possible?
 - should user have option to run something without TC or should they only have TC functions?
+* Example usage
+* Possible improvements
+* Conclusion
