@@ -130,21 +130,33 @@ While ~with-state-as~ allows us to add additional state to our component, the ~d
 #+end_src
 To change state the ~core/return~ function is used again. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
 * What is a monad
-Monads can be described as chainable operations on common types which either transform data or control flow (as in step of the program). In this case they can be both, but are most likely used to control which things are executed and shown when.
-A popular use case for monads is in the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ keyword, instead we can ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
+There are different kinds of Monads that serve different purposes. They're often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. One use case for some monads is to allow us to chain operations on often abstracted away types to transform data or control flow. In order to allow for sequential composition we need to make use of both, with a focus on controlling when what is executed and shown.
+A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
 #+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= operator, the chain will stop if one of the calls fails.
 #+begin_src haskell
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
 #+end_src
 
-To be a monad a type needs to implement two functions and comply with two rules. The required functions are >>= (also called bind) and return.
-A bind takes an instance of a type and takes a function that gets a value and returns another instance of that type. The result of a bind will be another item of that type, so a monad. The second function, the return, takes a value and makes an monad of that type.
+Monads are everywhere around us and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share.
+Common cases for monads are IO operations, handling of errors, UI work and to establish a context of values.
+** Whats required to be a monad
+To be a monad a type needs to implement two functions and comply with three rules. The required functions are ~>>=~ (also called bind) and ~return~.
+A bind takes an instance of a monad ~M~ and takes a function that gets a normal value and returns another instance of that type ~M~. The bind function return the result of the second argument, the passed function. We give it a monad and a function and get another monad out. This is what enables us to chain these operations together.
+The second function, the ~return~, takes a value and makes a monad out of it. This usually means wrapping the value in a monad type. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ value (with the value of 1 inside of it). Return is sometimes also referred to as ~pure~.
 
-In Haskell notation these functions are writen as follows:
+It's often helpful to see these functions in the Haskell notation, to understand them. See Listing for more.
+#+CAPTION: Haskell notation of the functions bind and return
 #+begin_src haskell
   M a >>= (a -> M b) = M b
   return a = M a
 #+end_src
+
+Our implementation of these functions need to fullfill the following three rules to be considered a monad:
+- Left identity: ~return a >>= h = h a~
+- Right identity: ~m >>= return = m~
+- Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
+
+Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a continuation function, if provided on the right side. The rule of associativity tests that the order of operation is not important. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
 * Current State
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand.
 A common way to implement this, is to use a switch statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occured, the component changes the state to allow for the next component to be rendered.
