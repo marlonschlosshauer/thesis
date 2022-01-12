@@ -10,11 +10,12 @@
 #+TOC: headlines
 #+LATEX: \newpage
 
+* Abstract
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as an component to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
 Modern frontend applications have gone beyond just serving information with HTML. They act as a digitalization of a workflow, where the order of components, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. This is to say, we say which steps we have and together they form a sequence.
-The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step, rather the result of each step is fed into the next step.
+The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step, rather the result of each step is fed into the next step. This allows us to adress the essential sequentiality of the domain while not creating accidental sequentiality, because sequentiality isn't our only tool.
 An example of a sequential composition would be to first show a sign-in component, then after a successful login show the actual component the user wanted to access.
 Composing sequentially isn't just an optimization, it's a fundamental building block of how an application is supposed to operate. Just how we need the ability to show both an input field and a button at the same time (to confirm the input), we also need the ability to model what happens after that button has been pressed.
 
@@ -231,16 +232,66 @@ A possible alternative to this would be to omit the body function entirely and i
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular item when wanted. It should be able to be composed parallel with other items and actions should be able to be caught from it.
 * Implementation
-** Specifics
-*** Types
-- Item
-- Commit
-- Prog
-*** Functions
-- return
-- then
-- show
-- runner
+Creating an API for sequential composition brings some challenges with it.
+Reacl-c already provides excellent tools for parallel composition, so the API for sequential composition should be intiuitive as well. It needs to hide the heavily lifting done in the background and not cause any unexpected issues, that would cause it to become unuseable for some scenarios. The sequential composition should not interfere with the parallel one and the border between the two should be clearly visible.
+And most importantly, developers should be able to compose sequentially how ever they like.
+** Used types
+While ClojureScript is a dynamically typed language, it is helpful to create types using Clojures ~records~, to make handling and transforming data easier.
+The most fundermental type is an UI element, which reacl-c already supplies in the form of ~item~. To signal that the next step should be executed, the ~item~ needs to emit something, which can be recognized internally. For that purpose the ~commit~ record exists. If an ~item~ emits a ~commit~, the internals will execute the next step.
+A developer could just pass an ~item~ for composition, however, it makes sense to have the developer acknowledge that they're working with more than just a simple ~item~. After all, the ~item~ should at some point emit a  ~commit~ to change the currently shown step. So, to be able to use the item for seq. composition, the developer needs to wrap it in a ~Prog~. This signals that the developer understood that the ~item~ will eventually emit a ~commit~. Perhabs further work  could be here, to guarente that a developer is alerted if their code never emits a ~commit~.
+In short:
+- Item: UI Element
+- Commit: What an Item emits to signal next exection
+- Prog: An Item that will Commit
+Internally, there is also a ~Bind~ type, which is the result of a ~then~ call. This holds both a ~Prog~ and a continuation, that will be called once a ~commit~ has been captured.
+** Functions exposed by the API
+To deliver on the promises of frictionless composibility without loss of performance, monads are used. The API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through it's steps.
+*** return
+The ~return~ function takes an ~Item~ and turns it into a ~Prog~.
+*** then
+The ~then~ function is what allows us to compose multiple ~Progs~ together. For that it takes both a ~Prog~ and a continuation function (which should return another ~Prog~). The continuation will be called later, in the ~runner~ function. ~then~ creates a value of type ~bind~ by passing the ~Prog~ and continuation parameters along. To allow for composition, the developer can also pass a ~Bind~ instead of a ~Prog~. The ~bind~ in that case would be a previously created composition. If the case, ~then~ needs to apply CSP transformation to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes. Thanks to the earier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind.
+#+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
+[[./images/csp-transformation.png]]
+This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) very easy. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
+#+CAPTION: Definition of the ~then~ function using csp-transformation
+#+begin_src clojure
+  (defn then
+    [prog cont]
+    (if (bind? prog)
+      (make-bind (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
+      (make-bind (if (item? prog) (make-prog prog) prog) cont)))
+#+end_src
+*** show
+~show~ extracts the ~Item~ from the passed variable, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned.
+This however does not capture any emmited ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
+*** runner
+A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
+It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
+The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping it's ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
+** Making the API more intuitive with macros
+Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
+#+CAPTION: Definition of the ~runner~ function using trampolines for tail-call-optimisation
+#+begin_src clojure
+  (defn runner
+    "Show `Prog` (or `Bind`). Returns an `Item`"
+    [b]
+    {:pre [(or (bind? b) (prog? b))]}
+    ;; inner state of book-keeping is the bind
+    (c/isolate-state
+     b
+     (c/dynamic
+      (fn [st]
+	(c/handle-action
+	 ;; display item in bind/prog
+	 (cond
+	   (bind? st) (show (bind-item st))
+	   (prog? st) (show st)
+	   :else st)
+	 (fn [st ac]
+	   ;; call continuation of bind on commit
+	   (if (and (commit? ac) (bind? st))
+	     (c/return :state ((bind-continuation st) (commit-payload ac))))))))))
+#+end_src
 ** Whats the semantic of the functions?
 ** How are errors handled?
 ** Should early termination be possible?
@@ -256,12 +307,10 @@ Again this implementation could be extended by allowing for the last parameter t
 
 These options all come with downsides. It is important to look at the use-case of the ~runner~ in real applications, to determine which is suited best for use.
 Like discussed earlier, the most common use-case will be the orchestrating of multiple steps, that all happen in a rigid order.
-
 ** How does the "Item" world and "Prog" world interact?
 ** Limitations
-* Optimisation
 ** Tail Call Optimisation
-Neither Java nor JavaScript, the the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is how ever a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
+Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
 It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
 *** Tail Call Optimisation in ClojureScript
 While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
@@ -269,6 +318,12 @@ Another way to gain TCO is to use whats called a trampoline. Instead of stepping
 *** Own TCO implementation
 While ~loop~ provides a perfectly fine TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
 The principle of the trampoline remains, but instead of just calling the function, it is required to pass a Prog upwards and wait for a commit from the Prog.
+*** Handling dynamic nature of nested monads in TCO
+- Never know what next continuation might return
+- Could be (again) a nested bind
+- Could be just a Prog
+- Commit might cause to go deeper into nested bind of cont
+- Or bubble up to previous cont (of current bind)
 *** Consequences of TCO
 - Need to wrap "binds" to enable trampoline
 - how to handle nested bind?
