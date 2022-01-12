@@ -268,8 +268,6 @@ This however does not capture any emmited ~commits~. If the execution of sequent
 A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
 It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
 The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping it's ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
-** Making the API more intuitive with macros
-Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
 #+CAPTION: Definition of the ~runner~ function using trampolines for tail-call-optimisation
 #+begin_src clojure
   (defn runner
@@ -292,6 +290,8 @@ Earlier we discussed a possible implementation for our sequential composition, u
 	   (if (and (commit? ac) (bind? st))
 	     (c/return :state ((bind-continuation st) (commit-payload ac))))))))))
 #+end_src
+** Making the API more intuitive with macros
+Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
 ** Whats the semantic of the functions?
 ** How are errors handled?
 ** Should early termination be possible?
