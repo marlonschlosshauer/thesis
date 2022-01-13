@@ -251,6 +251,7 @@ The ~return~ function takes an ~Item~ and turns it into a ~Prog~. This allows to
 *** then
 The ~then~ function is what allows us to compose multiple ~Progs~ together. For that it takes both a ~Prog~ and a continuation function (which should return another ~Prog~). The continuation will be called later, in the ~runner~ function. ~then~ creates a value of type ~Bind~ by passing the ~Prog~ and continuation parameters along. To allow for composition, the developer can also pass a ~Bind~ instead of a ~Prog~. The ~Bind~ in that case would be a previously created composition. If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind.
 #+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
+#+ATTR_LATEX: :width 200px
 [[./images/csp-transformation.png]]
 This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) very easy. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
 #+CAPTION: Definition of the ~then~ function using csp-transformation
@@ -267,26 +268,20 @@ The goal of ~then~ is to allow for easy composition, just like ~div~ from the ~d
 *** runner
 A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
 It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
-The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping it's ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
+The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping the ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
 #+CAPTION: Definition of the ~runner~ function using trampolines for tail-call-optimisation
 #+begin_src clojure
-  (defn runner
-    "Show `Prog` (or `Bind`). Returns an `Item`"
-    [b]
-    {:pre [(or (bind? b) (prog? b))]}
-    ;; inner state of book-keeping is the bind
+  (defn runner  [b]
     (c/isolate-state
      b
      (c/dynamic
       (fn [st]
 	(c/handle-action
-	 ;; display item in bind/prog
 	 (cond
 	   (bind? st) (show (bind-item st))
 	   (prog? st) (show st)
 	   :else st)
 	 (fn [st ac]
-	   ;; call continuation of bind on commit
 	   (if (and (commit? ac) (bind? st))
 	     (c/return :state ((bind-continuation st) (commit-payload ac))))))))))
 #+end_src
