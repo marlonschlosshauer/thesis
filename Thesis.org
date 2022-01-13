@@ -307,35 +307,21 @@ Again this implementation could be extended by allowing for the last parameter t
 These options all come with downsides. It is important to look at the use-case of the ~runner~ in real applications, to determine which is suited best for use.
 Like discussed earlier, the most common use-case will be the orchestrating of multiple steps, that all happen in a rigid order.
 ** Tail Call Optimisation
-Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
+Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Lastly, with composition it would undesirable to have to worry about depth of composition.
 It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
 *** Tail Call Optimisation in ClojureScript
 While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
-Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. In a loop the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends.
+Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now in a loop, the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends. The idea is to pull our function call up, instead of going deeper.
 *** Own TCO implementation
-While ~loop~ provides a perfectly fine TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
-The principle of the trampoline remains, but instead of just calling the function, it is required to pass a Prog upwards and wait for a commit from the Prog.
-*** Handling dynamic nature of nested monads in TCO
-- Never know what next continuation might return
-- Could be (again) a nested bind
-- Could be just a Prog
-- Commit might cause to go deeper into nested bind of cont
-- Or bubble up to previous cont (of current bind)
-*** Consequences of TCO
-- Need to wrap "binds" to enable trampoline
-- how to handle nested bind?
-- Possible to traverse but potentially expensive book keeping because of continuation
-- always need runner!
-- ~(Prog a >>= Prog b) >>= Prog c~ not possible?
-- should user have option to run something without TC or should they only have TC functions?
+While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
+The principle of the trampoline remains, but instead of just calling the function, it is required to pass a ~Bind~ upwards and wait for a commit from the ~Bind~. This is all done inside of the ~runner~ function. See Listing 15 for the code.
+The way it works is as follows: The current ~Bind~ is kept as the state of the ~runner~. The ~Item~ of that ~Bind~ is shown and wrapped by a ~handle-action~, to capture possible ~Commits~. Once a ~Commit~ appears, the continuation of the ~Bind~ is called and the result is set as the new state, which causes reacl-c to update the screen. The update will replace the previously displayed ~Item~ of the old ~Bind~, with the ~Item~ of the new ~Bind~. Finally, if another commit appears the continuation of the new ~Bind~ will be called instead of the old continuation, thus producing the next step.
+Because we change locale state, we don't have to dive into a nested structure. And because of the earlier mentioned CSP-transformation in the ~then~ function, we can be sure that any ~Bind~ will be flat (and not need to be flattened by the ~runner~).
 ** Limitations
-- Cannot check if Item really emits something
-- Currently, no error handling by the bind (needs to be done within the cont)
-- runner cannot be further composed
-- Just primitives
-- necessarily more overhead than just an if
-- no early termination
-Seeing how the use-case is all about making it possible to compose steps together, should it be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
+While the current implementation achieves what it sets out, some compromises had to be made. First, like mentioned earlier, it is being reliad on the fact that the developer actually emits a ~commit~ in what they label a ~Prog~. There is currently no logic to make sure this is done.
+Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. The current API offers really only primites and none of the deep functionality which is present in the parallel composibility in reacl-c.
+Error handling for the sequential composition is not explicitly supported. Developers need to handle errors by hand in the continuation of the next ~Bind~.
+Likewise, there is no way to terminate early, like a ~Maybe~ Monad. Seeing how the use-case is all about making it possible to compose steps together, should it even be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
 * Examples
 * Possible improvements
 - Early termination
