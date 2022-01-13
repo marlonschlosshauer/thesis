@@ -232,24 +232,24 @@ A possible alternative to this would be to omit the body function entirely and i
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular item when wanted. It should be able to be composed parallel with other items and actions should be able to be caught from it.
 * Implementation
-Creating an API for sequential composition brings some challenges with it.
-Reacl-c already provides excellent tools for parallel composition, so the API for sequential composition should be intiuitive as well. It needs to hide the heavily lifting done in the background and not cause any unexpected issues, that would cause it to become unuseable for some scenarios. The sequential composition should not interfere with the parallel one and the border between the two should be clearly visible.
-And most importantly, developers should be able to compose sequentially how ever they like.
+This being the first step of introducing sequential composition into reacl-c, it was important to provide strong primivates. Reacl-c already has excellent tools for parallel composition, so the sequential composition should mirror them, to be intiuitive for developers.
+The implementation needs to also hide the heavily lifting done in the background and not cause any unexpected issues, that would cause it to become unuseable for any scenario. The sequential composition should not interfere with the parallel one and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially how ever they like without any limitations.
 ** Used types
 While ClojureScript is a dynamically typed language, it is helpful to create types using Clojures ~records~, to make handling and transforming data easier.
-The most fundermental type is an UI element, which reacl-c already supplies in the form of ~item~. To signal that the next step should be executed, the ~item~ needs to emit something, which can be recognized internally. For that purpose the ~commit~ record exists. If an ~item~ emits a ~commit~, the internals will execute the next step.
-A developer could just pass an ~item~ for composition, however, it makes sense to have the developer acknowledge that they're working with more than just a simple ~item~. After all, the ~item~ should at some point emit a  ~commit~ to change the currently shown step. So, to be able to use the item for seq. composition, the developer needs to wrap it in a ~Prog~. This signals that the developer understood that the ~item~ will eventually emit a ~commit~. Perhabs further work  could be here, to guarente that a developer is alerted if their code never emits a ~commit~.
+The most fundermental type is an UI element, which reacl-c already supplies in the form of ~Item~. To signal that the next step should be executed, the ~Item~ needs to emit something, which can be recognized internally. For that purpose the ~Commit~ record exists. If an ~Item~ emits a ~Commit~, the internals will execute the next step.
+A developer could just pass an ~Item~ for composition, however, it makes sense to have the developer acknowledge that they're working with more than just a simple ~Item~. After all, the ~Item~ should at some point emit a  ~Commit~ to change the currently shown step. So, to be able to use the item for seq. composition, the developer needs to wrap it in a ~Prog~. This signals that the developer understood that the ~Item~ will eventually emit a ~Commit~. Perhabs further work  could be here, to guarente that a developer is alerted if their code never emits a ~Commit~.
 In short:
 - Item: UI Element
 - Commit: What an Item emits to signal next exection
 - Prog: An Item that will Commit
 Internally, there is also a ~Bind~ type, which is the result of a ~then~ call. This holds both a ~Prog~ and a continuation, that will be called once a ~commit~ has been captured.
 ** Functions exposed by the API
-To deliver on the promises of frictionless composibility without loss of performance, monads are used. The API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through it's steps.
+To deliver on the promises of frictionless composibility without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps.
+The essential functions are ~return~, ~then~ and ~runner~.
 *** return
-The ~return~ function takes an ~Item~ and turns it into a ~Prog~.
+The ~return~ function takes an ~Item~ and turns it into a ~Prog~. This allows to go from a parallel composition (with an ~Item~) to a sequential composition (of a ~Prog~). Once an ~Item~ is a ~Prog~ the result shouldn't be further parallely composed.
 *** then
-The ~then~ function is what allows us to compose multiple ~Progs~ together. For that it takes both a ~Prog~ and a continuation function (which should return another ~Prog~). The continuation will be called later, in the ~runner~ function. ~then~ creates a value of type ~bind~ by passing the ~Prog~ and continuation parameters along. To allow for composition, the developer can also pass a ~Bind~ instead of a ~Prog~. The ~bind~ in that case would be a previously created composition. If the case, ~then~ needs to apply CSP transformation to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes. Thanks to the earier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind.
+The ~then~ function is what allows us to compose multiple ~Progs~ together. For that it takes both a ~Prog~ and a continuation function (which should return another ~Prog~). The continuation will be called later, in the ~runner~ function. ~then~ creates a value of type ~Bind~ by passing the ~Prog~ and continuation parameters along. To allow for composition, the developer can also pass a ~Bind~ instead of a ~Prog~. The ~Bind~ in that case would be a previously created composition. If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind.
 #+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
 [[./images/csp-transformation.png]]
 This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) very easy. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
@@ -261,9 +261,9 @@ This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes 
       (make-bind (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
       (make-bind (if (item? prog) (make-prog prog) prog) cont)))
 #+end_src
+The goal of ~then~ is to allow for easy composition, just like ~div~ from the ~dom~ namespace of reacl-c. Further composing of a ~Prog~ into another ~Prog~ can be easily done with the ~then~ function. At the same time order of execution will be preserved.
 *** show
-~show~ extracts the ~Item~ from the passed variable, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned.
-This however does not capture any emmited ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
+~show~ extracts the ~Item~ from the passed variable, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emmited ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
 *** runner
 A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
 It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
@@ -290,12 +290,11 @@ The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisati
 	   (if (and (commit? ac) (bind? st))
 	     (c/return :state ((bind-continuation st) (commit-payload ac))))))))))
 #+end_src
+** How parallel and sequential composition interact
+The developer should be able to use the API like they use the other tools of reacl-c. At the same time though, there needs to be a clear border between the parallel and sequential composition, as they're fundamentally different. To guarentee that, the API introduced the ~Prog~ and ~Bind~ types. While neither work with other reacl-c tooling (to discourage incorrec usage), both contain an ~Item~. Taking a ~Prog~ and turning it into an ~Item~ is simple, thanks to ~return~. Turning an ~Item~ into a ~Prog~ or ~Bind~ is also simple and can be done with either ~show~ and ~runner~, however the later has little use if the ~Item~ does not emit a ~commit~ at some point. Functionality that could check if an ~Item~ will ever emit a ~commit~ (or other types), would be something to add in the future. Perhaps an additional keyword like ~:state:~ for the ~return~ function of the ~core~ namespace in reacl-c could be added to handle this case.
+It's worth mentiong that that at the borders further composition of the type that has been moved away from, isn't possible anymore. A ~runner~ returns an ~Item~ which from that point on can only be meaningfully parallely composed. Likewise, wrapping a ~Prog~ within a ~div~ with other ~Items~ is also meaningless. The developer needs to make a choice at those points if they really are done composing, in order to switch to the different type.
 ** Making the API more intuitive with macros
 Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
-** Whats the semantic of the functions?
-** How are errors handled?
-** Should early termination be possible?
-Seeing how the use-case is all about making it possible to compose steps together, should it be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
 ** What is the result of the last continutation?
 There are multiple options for what this behaviour could look like. The most obivous answer to the question, of what a ~runner~ will return at the end, is that it will return nothing. The content of the last ~Prog~ will be returned and therefor be shown indefinitely. This certainly works but doesn't realize the full potential of the idea, of using monads to chain flows of ~Progs~ together.
 A more interesting implementation would be to let the developer return whatever in the last continuation of the last ~Bind~. So instead of unwrapping a ~Prog~ into an ~Item~ to use with other ~reacl-c~ functions, the ~runner~ could return a normal value at the end. This has the benefit of making out ~runner~ be more, than just a display that will turn in to a dead end. A possible use-case would be the chaining together HTTP requests where only the result is important.
@@ -307,8 +306,6 @@ Again this implementation could be extended by allowing for the last parameter t
 
 These options all come with downsides. It is important to look at the use-case of the ~runner~ in real applications, to determine which is suited best for use.
 Like discussed earlier, the most common use-case will be the orchestrating of multiple steps, that all happen in a rigid order.
-** How does the "Item" world and "Prog" world interact?
-** Limitations
 ** Tail Call Optimisation
 Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements.
 It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
@@ -331,6 +328,18 @@ The principle of the trampoline remains, but instead of just calling the functio
 - always need runner!
 - ~(Prog a >>= Prog b) >>= Prog c~ not possible?
 - should user have option to run something without TC or should they only have TC functions?
-* Example usage
+** Limitations
+- Cannot check if Item really emits something
+- Currently, no error handling by the bind (needs to be done within the cont)
+- runner cannot be further composed
+- Just primitives
+- necessarily more overhead than just an if
+- no early termination
+Seeing how the use-case is all about making it possible to compose steps together, should it be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
+* Examples
 * Possible improvements
+- Early termination
+- Different types of commit
+- force prog to commit
+- lenses for seq comp?
 * Conclusion
