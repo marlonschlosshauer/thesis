@@ -130,7 +130,7 @@ While ~with-state-as~ allows us to add additional state to our component, the ~d
 	:onChange (fn [[outter inner] e] (c/return :state [outter (.. e -target -value)]))}))))
 #+end_src
 To change state the ~core/return~ function is used again. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
-* What is a monad
+* TODO What is a monad
 There are different kinds of Monads that serve different purposes. They're often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. One use case for some monads is to allow us to chain operations on often abstracted away types to transform data or control flow. In order to allow for sequential composition we need to make use of both, with a focus on controlling when what is executed and shown.
 A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case it does.
 #+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= operator, the chain will stop if one of the calls fails.
@@ -158,7 +158,7 @@ Our implementation of these functions need to fullfill the following three rules
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a continuation function, if provided on the right side. The rule of associativity tests that the order of operation is not important. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
-* Current State
+* TODO Current State
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand.
 A common way to implement this, is to use a switch statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occured, the component changes the state to allow for the next component to be rendered.
 #+begin_src javascript
@@ -200,7 +200,8 @@ Another property to keep in mind is that the components need to be able to at le
 Listing 2 shows the example from Listing 1, but it's written in reacl-c and instead of using an increasing number to keep track of which step the component is on, a keyword is used which could be used to show components in a non-linear order, loop back to the inital component after visiting the final component or to show a component multiple times (with different values each time). But this means a second switch statement is needed, to map the transitions from one component to another.
 
 This causes multiple issues. The most immidiate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also very easy to lose track of which component will be shown next, if a complex order is choosen, as no support is being provided by either the language nor the framework. Importantly, this also cannot be further composed! We would need to copy the entire logic to another component to wrap our flow of components, with another flow of components. Unlike the other items in reacl-c if this item acts as a child, the parent will not be able to influence the input and output of this item.
-* Desired Behaviour
+** TODO Callbacks
+* TODO Desired Behaviour
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Unlike with parallel composition, there are little examples to go off of. Because of this it's easy to draw inspiration from other, already in use functions.
 ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
 #+CAPTION: Using ~let~ to bind values to the names ~one~, ~two~, ~three~
@@ -265,7 +266,7 @@ This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes 
 The goal of ~then~ is to allow for easy composition, just like ~div~ from the ~dom~ namespace of reacl-c. Further composing of a ~Prog~ into another ~Prog~ can be easily done with the ~then~ function. At the same time order of execution will be preserved.
 *** show
 ~show~ extracts the ~Item~ from the passed variable, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emmited ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
-*** runner
+*** TODO runner
 A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
 It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
 The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping the ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
@@ -323,10 +324,10 @@ While the current implementation achieves what it sets out, some compromises had
 Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. The current API offers really only primites and none of the deep functionality which is present in the parallel composibility in reacl-c.
 Error handling for the sequential composition is not explicitly supported. Developers need to handle errors by hand in the continuation of the next ~Bind~.
 Likewise, there is no way to terminate early, like a ~Maybe~ Monad. Seeing how the use-case is all about making it possible to compose steps together, should it even be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
-* Examples
-* Possible improvements
+* TODO Examples
+* TODO Possible improvements
 - Early termination
 - Different types of commit
 - force prog to commit
 - lenses for seq comp?
-* Conclusion
+* TODO Conclusion
