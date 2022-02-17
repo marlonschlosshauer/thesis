@@ -10,7 +10,7 @@
 #+TOC: headlines
 #+LATEX: \newpage
 
-* Abstract
+* TODO Abstract
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as an component to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
@@ -36,13 +36,13 @@ React is a popular UI framework developed by Facebook and written in JavaScript.
 #+begin_src javascript
   const profile = ({name, age, image}) => {
       return (
-	      <div className="profile-container">
-	      <div className="profile-info-container">
+	  <div className="profile-container">
+	    <div className="profile-info-container">
 	      <p>{name}</p>
 	      <p>Age: {age}</p>
-	      </div>
-	      <img alt={`Avatar of ${name}`} src={image}/>
-	      </div>
+	    </div>
+	    <img alt={`Avatar of ${name}`} src={image}/>
+	  </div>
       )
   }
 #+end_src
@@ -160,6 +160,7 @@ Our implementation of these functions need to fullfill the following three rules
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a continuation function, if provided on the right side. The rule of associativity tests that the order of operation is not important. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
 * TODO Current State
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand.
+** Switch Statement
 A common way to implement this, is to use a switch statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occured, the component changes the state to allow for the next component to be rendered.
 #+begin_src javascript
   const login = () => {
@@ -199,8 +200,41 @@ Another property to keep in mind is that the components need to be able to at le
 #+end_src
 Listing 2 shows the example from Listing 1, but it's written in reacl-c and instead of using an increasing number to keep track of which step the component is on, a keyword is used which could be used to show components in a non-linear order, loop back to the inital component after visiting the final component or to show a component multiple times (with different values each time). But this means a second switch statement is needed, to map the transitions from one component to another.
 
-This causes multiple issues. The most immidiate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also very easy to lose track of which component will be shown next, if a complex order is choosen, as no support is being provided by either the language nor the framework. Importantly, this also cannot be further composed! We would need to copy the entire logic to another component to wrap our flow of components, with another flow of components. Unlike the other items in reacl-c if this item acts as a child, the parent will not be able to influence the input and output of this item.
+This causes multiple issues. The most immidiate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also very easy to lose track of which component will be shown next, if a complex order is choosen, as no support is being provided by either the language nor the framework. There is also no check if the pattern is non-exhaustive.
+Importantly, this also cannot be further composed! With the implementation in Listing 1 or Listing 2, it is not possible to wrap them with a similiar structure, as the inner component has currently no way to signal to the outter component, that the next step is to be displayed. We solved this problem inside of the inner component by passing a callback down, to call us once the next step should be displayed.
+We could preemptively add a callback to our ~login~ component, which would be called once the component is done, in case we'd ever need it in the future. This makes our component sequentially composible, however adds even more code to our component. It also requires that we keep track of our steps at yet another place, the point which determinds if the component is done (and the final callback should be called). See Listing 3 for more.
+#+begin_src javascript
+  const login = (onFinish) => {
+      const stepCount = 3;
+      const [step, setStep] = useState(0);
+      const cb = x => {
+	  setValue(x);
+	  if (onFinish && step >= stepCount) {
+	      onFinish(x)
+	  } else {
+	      setStep(step+1);
+	  }
+      };
+
+      return switch(step) {
+	  case 0:
+	  return (<personalInfo value={value} cb={cb}/>) ;
+	  case 1:
+	  return (<verificationCode value={value} cb={cb}/>) ;
+	  case 2:
+	  return (<showAccountInfo value={value}/>) ;
+      }
+  }
+#+end_src
+While meeting all functional requirements, the implementation provides poor useability. First, we need to write a lot of boiler place, because we can't abstract away the switch statement, as we need direct knowledge about it for our core functionality. Secondly, we need to be aware and handle edge-cases like not being provided a callback, yet having child components continue to ask for a next step. Thirdly, nothing is stopping us from doing parallel work in our sequential composition. This means our sequential composition could be used to also sneak in parallel changes, that could lead to unexpected behaviour.
 ** TODO Callbacks
+We have already explored one possbile solution to sequential composition, using a switch statement. However we had to fall back to using callbacks to implement our logic. It is also possible to skip the switch statement and just use callbacks. This has the benefit of relieving us of a lot of code.
+#+begin_src javascript
+  const login = (cb) => {
+      const [result, setResult] = useState();
+      return (result) ? result : <personalInfo cb={e => setResult(cb(e))}/>;
+  }
+#+end_src
 * TODO Desired Behaviour
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Unlike with parallel composition, there are little examples to go off of. Because of this it's easy to draw inspiration from other, already in use functions.
 ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
@@ -291,6 +325,50 @@ The developer should be able to use the API like they use the other tools of rea
 It's worth mentiong that that at the borders further composition of the type that has been moved away from, isn't possible anymore. A ~runner~ returns an ~Item~ which from that point on can only be meaningfully parallely composed. Likewise, wrapping a ~Prog~ within a ~div~ with other ~Items~ is also meaningless. The developer needs to make a choice at those points if they really are done composing, in order to switch to the different type.
 ** TODO Making the API more intuitive with macros
 Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
+*** What are macros?
+*** Syntax and use-cases
+*** Setup
+Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are expanded during compile time. Because Clojure is hosted on Java, which runs on the JVM, this is no issue. ClojureScript however, is hosted on JavaScript, which is an interpreted language. This means the compilation process needes to be kept in mind when writing ClojureScript macros.
+Regardless, it is still possible to both write Macros for ClojureScript and write Macros that use ClojureScript code.
+There are multiple ways to write a Macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword to the namespace defined in the ~.clj~.
+#+CAPTION: Example definition of a macro in ~macros.clj~
+#+begin_src clojure
+  (ns code.macros)
+  (defmacro example-macro [x] (code.other/function x))
+#+end_src
+#+CAPTION: ClojureScript file ~actual.cljs~ that imports the previously in ~macros.clj~  defined macro with ~:require-macros~ keyword
+#+begin_src clojure
+  (ns code.test
+    (:require [code.other])
+    (:require-macros [code.macros :as m]))
+  (m/example-macro "example")
+#+end_src
+
+
+Listing #13 and #14 show how to both create and import a macro. They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with it's entire namespace. Namespaces that want to use the macro need to also import the namespace specified in the macro (in our case the ~code.other~ namespace). It's advised to create another namespace that abstracts this work away by both providing both the needed namespaces and the macros.
+*** Macro implementation
+The goal of our macro is to re-write the passing of multiple ~Progs~ into a series of ~then~ chains, that bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~(symbol,value)~ pairs to our macro. Internally the macro will re-write this to functional ClojureScript code.
+#+CAPTION: Macro takes care of wrapping ~Progs~ in a ~then~ and creates annonymous functions automatically (while binding symbols to function parameters)
+#+begin_src clojure
+  ;; Before macro
+  (runner (then prog1
+		(fn [x]
+		  (then prog2
+			(fn [y] prog3)))))
+
+  ;; After macro
+  (runner [x prog1
+	   y prog2] prog3)
+#+end_src
+
+Listing #15 gives a glimps of the logic. Much like a ~let~, we want to use anynomous function to bind our symbols to something ClojureScript can work with (like values). Because we already need to supply a ~continuation~ for our ~then~ function, we can use the parameters of that function to bind our symbols too (see Listing #15 e.g. symbol ~x~ moving from being parameter to being symbol).
+#+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the annoymous functions
+#+begin_src clojure
+  (defmacro -then [[var val & rest :as steps] end-expr]
+    (if steps
+      `(code.bind/then ~val (fn [~var] (-then ~rest ~(seq end-expr))))
+      end-expr))
+#+end_src
 ** What is the result of the last continutation?
 There are multiple options for what this behaviour could look like. The most obivous answer to the question, of what a ~runner~ will return at the end, is that it will the last ~Prog~ indefinitely. It could also stop displaying anything, though there is little benefit to that.
 A more interesting implementation would be to let the developer return whatever they like in the last continuation of the last ~Bind~. So instead of unwrapping a ~Prog~ into an ~Item~ to use with other ~reacl-c~ functions, the ~runner~ could return a normal value at the end. This has the benefit of making out ~runner~ be more, than just a display, which will turn in to a dead end. A possible use-case would be the chaining together HTTP requests where only the result is important.
