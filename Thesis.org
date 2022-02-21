@@ -10,7 +10,9 @@
 #+TOC: headlines
 #+LATEX: \newpage
 
-* TODO Abstract
+* Abstract
+Composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel- and sequential-composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support for it (or lack thereof) and explore a developer friendly interface.
+Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed interface for it. At the end we give examples for using our implementation for sequential composition and discuss possible improvements to the implementation.
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as an component to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
@@ -30,6 +32,7 @@ There are more issues like the inability to easily test just the order of the co
 Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we can use another axis to control our programs and build complicated hierchies, where an application consistst of one sequentially composed component, that inside of it has either more sequentially or parallel composed components.
 Not only would our code be more expressive and more concise, bugs could also be reduced because the systems we build can be represented more truthfully by the provided api of the framework. But most importantly we could build workflows out of smaller flows or other workflows entirely and share these across our applications.
 Given the lack of support and possible application it is of high interest to find a way to compose sequentially, easier.
+* TODO Why composition is important
 * What is React
 React is a popular UI framework developed by Facebook and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
 #+CAPTION: Example of JSX to define a profile
@@ -158,6 +161,8 @@ Our implementation of these functions need to fullfill the following three rules
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a continuation function, if provided on the right side. The rule of associativity tests that the order of operation is not important. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
+** TODO Why we need monads
+** TODO Different types of monads
 * TODO Current State
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand.
 ** Switch Statement
