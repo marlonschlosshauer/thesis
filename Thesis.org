@@ -164,12 +164,6 @@ Our implementation of these functions need to fullfill the following three rules
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a continuation function, if provided on the right side. The rule of associativity tests that the order of operation is not important. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
-* TODO Why composition is important
-Composition has multiple benefits
-- Shareable (Re-usable)
-- Can always add to it
-- Testable, because I can break problem into smaller chunks
--
 * TODO Current State
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand.
 ** Switch Statement
@@ -278,6 +272,12 @@ A possible alternative to this would be to omit the body function entirely and i
 	   info (show-account-info [personal verification])])
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular item when wanted. It should be able to be composed parallel with other items and actions should be able to be caught from it.
+* TODO Why composition is important
+Composition has multiple benefits
+- Shareable (Re-usable)
+- Can always add to it
+- Testable, because I can break problem into smaller chunks
+-
 * API Design
 This being the first step of introducing sequential composition into reacl-c, it was important to provide strong primivates. Reacl-c already has excellent tools for parallel composition, so the sequential composition should mirror them, to be intiuitive for developers.
 The implementation needs to also hide the heavily lifting done in the background and not cause any unexpected issues, that would cause it to become unuseable for any scenario. The sequential composition should not interfere with the parallel one and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially how ever they like without any limitations.
