@@ -16,11 +16,18 @@ Furthermore, we show what real-c is and compare it to React, before implementing
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as a component, to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel, as we can group elements into something that is to work together with each other. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
+#+CAPTION: Example of parallel composition of a sign-in component. The first composition is a button and two inputs. The result of the first composition is further composed by adding a headline. That result is then further composed by adding a logo.
+#+ATTR_LATEX: :width 350px
+[[./images/parallel-composition-highlighted.png]]
+
 However, modern frontend applications have gone beyond just serving information with HTML. They act as a digitalization of a workflow, where the order of components, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. This is to say, we say which steps we have and together they form a sequence.
 The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step, rather the result of each step is fed into the next step. This allows us to adress the essential sequentiality of the domain while not creating accidental sequentiality, because sequentiality isn't our only tool. *TODO*
 An example of a sequential composition would be to first show a sign-in component, then after a successful login show the actual component the user wanted to access.
 An example of a sequential composition would be to first ask the user for their e-mail address, then after having the user enter a valid e-mail, showing the user an input field for a code that was sent to them, using their e-mail. Notice that the second step depends on information that was gathered by the previous step.
 
+#+CAPTION: Example of sequential composition of a sign-up component. The first composition combines two steps and is further composed by adding a third step.
+#+ATTR_LATEX: :width 350px
+[[./images/sequential-composition-highlighted.png]]
 
 Because of this dependency composing sequentially isn't just an optimization, it's a fundamental building block of how an application is supposed to operate. Just how we need the ability to show both an input field and a button at the same time (to confirm the input), we also need the ability to model what happens after (and possibly before) that button has been pressed.
 
