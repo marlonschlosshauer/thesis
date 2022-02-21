@@ -410,16 +410,56 @@ This however raises the question what should happen if no continuation is suppli
 Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for a ~Commit~, combining ~Progs~) away from the developer while also making it easy to combine steps.
 The required functions also are a fit for our API. With the ~>>=~ Operation we give the developer an easy way to further compose their sequential components. ~return~ gives us a new type, which we can use to distinguish our sequential and parallel compositions from each other.
 Because we wait for a ~Commit~ to be emitted, we need to take asychronisity into account. Thus we need the previously described tools to build up a blueprint and a specially labeled environment in which that blueprint is being executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
+** Tail Call Optimisation
+Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Lastly, with composition it would undesirable to have to worry about depth of composition.
+It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
+*** TCO in ClojureScript
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
+Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now in a loop, the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends. The idea is to pull our function call up, instead of going deeper.
+*** Custom TCO
+While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed. We will revisit the trampoline again during the implementation.
 * Implementation
+Previously we have discussed which functions our API should offer, now we will focus on implementing these individual functions and features. Being Aside from being functioning, we will also talk about optimizing the ~runner~ function and implementing macros for easy of use.
 ** then
-*** Code
-*** CSP tranformation
-** runner
-*** Code
-#+CAPTION: Definition of the ~runner~ function using trampolines for tail-call-optimisation
+Discussed earlier, the ~then~ function needs to compose steps together. The basic idea is trivial. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing #15 shows the definition of a ~record~ type as well as the ~make-bind~ function.
+#+CAPTION: Record definition of the bind type and a helper function to filter out incorrect values
 #+begin_src clojure
-  (defn runner
-    [b]
+  (defrecord Bind [prog continuation])
+
+  (defn make-bind [prog continuation]
+    {:pre [(prog? prog)]}
+    (->Bind prog continuation))
+#+end_src
+
+However, just passing a ~Prog~ everytime would be of little use. A ~Prog~ just contains a single step. Things get interesting if we want to pass a ~Bind~, because we cannot just wrap the ~Bind~ again, as it already contains a ~Prog~.
+If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind. A visual explanation can be seen in Figure #15.
+#+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
+#+ATTR_LATEX: :width 200px
+[[./images/csp-transformation.png]]
+This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) trivial. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
+
+Now, inside of our ~then~ function we need to handle both cases. For this we differenciate between a ~then~ call where a ~Prog~ is passed and where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CSP-transformation. See Listing #15 for the code.
+#+CAPTION: Definition of the ~then~ function using csp-transformation
+#+begin_src clojure
+  (defn then [prog cont]
+    {:pre [(or (bind? prog) (prog? prog) (c/item? prog))
+	   (fn? cont)]
+     :post [(bind? %)]}
+    (if (bind? prog)
+      (make-bind (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
+      (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
+#+end_src
+To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our functions. In this case we say that the ~prog~ can be a ~Prog~, ~Bind~ or even an ~Item~. The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
+** TODO runner
+The place for our monad to be executed in is the ~runner~. It will receive a ~Prog~ or ~Bind~. The ~runner~ is the most complex function of our API because of all the things it needs to do:
+1. Book-keeping of state for steps
+2. Catch emitted ~Commits~
+3. Make sure implicit state is passed to the ~Prog~ (without leaking own state)
+4. And optimize function calls to prevent stackoverflow
+As such we will show the code in its entirety here and go in depth about individual parts one after another. See Listing #15 for the code.
+#+CAPTION: Entire definition of the ~runner~ function using trampolines, state-management, lenses and actions.
+#+begin_src clojure -n 0
+  (defn runner [b]
     {:pre [(or (bind? b) (prog? b))]}
     (c/local-state
      b
@@ -433,8 +473,38 @@ Because we wait for a ~Commit~ to be emitted, we need to take asychronisity into
 	   (if (and (commit? ac) (bind? st))
 	     (c/return :state [outter ((bind-continuation st) (commit-payload ac))]))))))))
 #+end_src
+*** Basic Functionality
+The goal of the ~runner~ is hold and display whats inside of a ~Bind~. While it does this, it wraps the ~Bind~ and waits for a ~Commit~ which will trigger the it to call the ~continuation~ of the ~Bind~.
+To understand this better we're going to focus on line 5-13 of Listing 15. First notice the ~handle-action~ call. This function takes two parameters. First an ~Item~ to display, second a ~function~ to call once the ~Item~ emits something. The function that will be called can be seen at the bottom on line 11-13. We don't directly pass an ~Item~ however. We pass a ~focus~ function. This is done to ~focus~ the state on a specific part. Namely limiting the implicitly passed state to whats outside of the runner, instead of leaking the book-keeping state of the runner downwards. This function again takes two parameters. First a lens (function of two arities) and second an ~Item~. We will talk more about the lense later.
+The second parameter the in our API defined ~show~ function, which just takes either ~Bind~, ~Prog~ or ~Item~ and unwraps it to an ~Item~ again.
+From this point on we can talk about the ~function~ that was passed to the ~handle-action~. That function has two parameters again. First is the state of the ~runner~ at the moment at which the action was emitted from the ~Item~. We have access to this so we can reduce the state with the second parameter, the action send from the ~Item~ to us, into a new state. We then return that new state with the ~return~ function (using the ~:state~ keyword). This lets the component know that it needs to update its state, therefor render itself again. The passed state is destructured into the outter state, which was implicitly passed to our ~runner~ and the state of the ~runner~ itself (here ~st~). In line 12 we have a check confirm the ~Item~ sent us an action that is a ~Commit~. If it isn't a ~Commit~, the action will propegate further upwards. We also check if our current state holds a ~Bind~, because only if we have a ~Bind~, can we call a ~continuation~. In line 13 we then call the ~continuation~ of our ~Bind~ with the payload of the ~Commit~ and return it as state of our ~runner~.
 *** Lens
-** Macros
+The previously mentioned lens in line 9 is needed to stop leaking the book-keeping for our tail call optimization, downards into our ~Item~.
+Lenses are a popular mechanicsm in functional programming to, on one side, restrict the available information, while allowing changes from the restricted side to change the whole, as well.
+
+
+Our lens is a first lense, because it restricts access to anything but the first element. This is releveant because when state is passed around inside of a component in reacl-c, it usually comes in the form of an array where the first element is the outter and the second parameter is inner state.
+
+The code for the first lens can be found in listing 16.
+#+CAPTION: Code for the first-lens.
+#+begin_src clojure
+  (defn first-lens
+    ([[first & _]]
+     first)
+    ([[_ & rest] small]
+     (vec (cons small rest))))
+#+end_src
+
+Because we don't want the internal state of our ~runner~ to leak, but we do want the state surrounding the ~runner~ to be passed down, we ignore the inner state and pass down the outter.
+Our lense is a function with multiple arities. That means it can take different amounts of parameters. Ours being of aritiy of two, means it has two different signatures. A signature where it gets one parameter and a signature where it takes two parameters.
+To restrict access, so when it is called from the perspective of the child, the signature with one parameter is called. Here the list inner, outter and what else is destructured and everything besides the ~first~ element is ignored. That ~first~ element is then returned.
+On changes to the state from within our child, the signature with two parameters is called. The change being the second parameter, here called ~small~. We again destructure the first argument but now ignore the previously named ~first~ and access the previously ignored ~rest~. All that is left is to combine them with ~cons~ and return them as a ~vector~.
+*** TODO Implementing Tail Call Optimization
+While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
+The principle of the trampoline remains, but instead of just calling the function, it is required to pass a ~Bind~ upwards and wait for a commit from the ~Bind~. This is all done inside of the ~runner~ function. See Listing 15 for the code.
+The way it works is as follows: The current ~Bind~ is kept as the state of the ~runner~. The ~Item~ of that ~Bind~ is shown and wrapped by a ~handle-action~, to capture possible ~Commits~. Once a ~Commit~ appears, the continuation of the ~Bind~ is called and the result is set as the new state, which causes reacl-c to update the screen. The update will replace the previously displayed ~Item~ of the old ~Bind~, with the ~Item~ of the new ~Bind~. Finally, if another commit appears the continuation of the new ~Bind~ will be called instead of the old continuation, thus producing the next step.
+Because we change locale state, we don't have to dive into a nested structure. And because of the earlier mentioned CSP-transformation in the ~then~ function, we can be sure that any ~Bind~ will be flat (and not need to be flattened by the ~runner~).
+** TODO Macros
 *** Setup
 Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are expanded during compile time. Because Clojure is hosted on Java, which runs on the JVM, this is no issue. ClojureScript however, is hosted on JavaScript, which is an interpreted language. This means the compilation process needes to be kept in mind when writing ClojureScript macros.
 Regardless, it is still possible to both write Macros for ClojureScript and write Macros that use ClojureScript code.
@@ -485,17 +555,6 @@ Listing #15 gives a glimps of the logic. Much like a ~let~, we want to use anyno
     ([x y]
      `(code.bind/runner (then ~x  ~y))))
 #+end_src
-** Tail Call Optimisation
-Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Lastly, with composition it would undesirable to have to worry about depth of composition.
-It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
-*** Tail Call Optimisation in ClojureScript
-While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
-Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now in a loop, the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends. The idea is to pull our function call up, instead of going deeper.
-*** Own TCO implementation
-While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
-The principle of the trampoline remains, but instead of just calling the function, it is required to pass a ~Bind~ upwards and wait for a commit from the ~Bind~. This is all done inside of the ~runner~ function. See Listing 15 for the code.
-The way it works is as follows: The current ~Bind~ is kept as the state of the ~runner~. The ~Item~ of that ~Bind~ is shown and wrapped by a ~handle-action~, to capture possible ~Commits~. Once a ~Commit~ appears, the continuation of the ~Bind~ is called and the result is set as the new state, which causes reacl-c to update the screen. The update will replace the previously displayed ~Item~ of the old ~Bind~, with the ~Item~ of the new ~Bind~. Finally, if another commit appears the continuation of the new ~Bind~ will be called instead of the old continuation, thus producing the next step.
-Because we change locale state, we don't have to dive into a nested structure. And because of the earlier mentioned CSP-transformation in the ~then~ function, we can be sure that any ~Bind~ will be flat (and not need to be flattened by the ~runner~).
 ** Limitations
 While the current implementation achieves what it sets out, some compromises had to be made. First, like mentioned earlier, it is being reliad on the fact that the developer actually emits a ~commit~ in what they label a ~Prog~. There is currently no logic to make sure this is done.
 Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. The current API offers really only primites and none of the deep functionality which is present in the parallel composibility in reacl-c.
