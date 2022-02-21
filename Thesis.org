@@ -171,9 +171,18 @@ Our implementation of these functions need to fullfill the following three rules
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a continuation function, if provided on the right side. The rule of associativity tests that the order of operation is not important. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
-* TODO Current State
-Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand.
-** Switch Statement
+* Current State
+Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps.
+** If statement
+While not offering composibility, a simple ~if~ statement is highly effective for binary choices when it comes to displaying components. An example would be to guard dashboards and such behind an ~if~ statement, to check if the user is logged in. If they aren't, the login page (instead of the dashboard) is shown.
+#+begin_src javascript
+  const app = (isLoggedIn) => {
+      return (isLoggedIn)
+	  ? <login/>
+	  : <dashboard/>
+  }
+#+end_src
+** Switch statement
 A common way to implement this, is to use a switch statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occured, the component changes the state to allow for the next component to be rendered.
 #+begin_src javascript
   const login = () => {
@@ -211,7 +220,7 @@ Another property to keep in mind is that the components need to be able to at le
 	   :verification (if (nil? ac) :verification :show)
 	   :show :show) ac]))))
 #+end_src
-Listing 2 shows the example from Listing 1, but it's written in reacl-c and instead of using an increasing number to keep track of which step the component is on, a keyword is used which could be used to show components in a non-linear order, loop back to the inital component after visiting the final component or to show a component multiple times (with different values each time). But this means a second switch statement is needed, to map the transitions from one component to another.
+Listing #2 shows the example from Listing 1, but it's written in reacl-c and instead of using an increasing number to keep track of which step the component is on, a keyword is used which could be used to show components in a non-linear order, loop back to the inital component after visiting the final component or to show a component multiple times (with different values each time). But this means a second switch statement is needed, to map the transitions from one component to another.
 
 This causes multiple issues. The most immidiate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also very easy to lose track of which component will be shown next, if a complex order is choosen, as no support is being provided by either the language nor the framework. There is also no check if the pattern is non-exhaustive.
 Importantly, this also cannot be further composed! With the implementation in Listing 1 or Listing 2, it is not possible to wrap them with a similiar structure, as the inner component has currently no way to signal to the outter component, that the next step is to be displayed. We solved this problem inside of the inner component by passing a callback down, to call us once the next step should be displayed.
@@ -240,14 +249,42 @@ We could preemptively add a callback to our ~login~ component, which would be ca
   }
 #+end_src
 While meeting all functional requirements, the implementation provides poor useability. First, we need to write a lot of boiler place, because we can't abstract away the switch statement, as we need direct knowledge about it for our core functionality. Secondly, we need to be aware and handle edge-cases like not being provided a callback, yet having child components continue to ask for a next step. Thirdly, nothing is stopping us from doing parallel work in our sequential composition. This means our sequential composition could be used to also sneak in parallel changes, that could lead to unexpected behaviour.
-** TODO Callbacks
-We have already explored one possbile solution to sequential composition, using a switch statement. However we had to fall back to using callbacks to implement our logic. It is also possible to skip the switch statement and just use callbacks. This has the benefit of relieving us of a lot of code.
+** Callbacks
+We have already explored one possbile solution to sequential composition, using a switch statement. However we had to fall back to using callbacks to implement our logic. It is also possible to skip the switch statement and just use callbacks. This has the benefit of relieving us of a lot of code and making it easier at a glance to understand what is happening.
+
+One idea for a component that is sequentially composible is shown in Listing #5, while usage is shown in Listing #6.
+#+CAPTION: Definition of a composible component using callbacks. The ~cb~ callback function will be called once if the user clicks the button. The result of the callback is saved as state and will be shown, instead of the the now old component.
 #+begin_src javascript
-  const login = (cb) => {
+  const personalInformation = (cb) => { // callback received as parameter
       const [result, setResult] = useState();
-      return (result) ? result : <personalInfo cb={e => setResult(cb(e))}/>;
+
+      const [email, setEmail] = useState();
+      const [password, setPassword] = useState();
+
+      return (result) // display result if present
+	  ? result
+	  : (<div>
+	     <input onChange={setEmail} value={email}/>
+	     <input onChange={setPassword} value={password}/>
+	     <button onClick={() => setResult(cb(email))}>Continue</button> //callback called and result saved
+	     </div>)
   }
 #+end_src
+
+At the core it's not much different than the switch-case. We pass down a callback, which will be called once the next step is to be shown. The difference is that the book keeping for the next step isn't centralized at the top, but takes place at each and every step, inside of the component. The components themselves can be composed further by making sure the callback itself takes yet another callback, to continue the chain.
+
+#+CAPTION: Compose our steps like in the switch-case example, by building up a chain of function and passing it to our initial step.
+#+begin_src javascript
+  const login = () => {
+      const cb = (email) => <verificationCode email={email} cb={() => <showAccountInfo/>}/>; // compose our steps
+      return <personalInformation cb={cb}>
+  }
+#+end_src
+Thanks to the flexibility of callbacks, we can now fully compose sequentially. However, this implementation has a couple of shortcomings. Firstly, we need to keep track of a lot of callbacks. This leads to code that is unpleasent to read (e.g composing mutliple steps in Listing #6). Secondly, we still need to write a lot of code every time we want a sequentially composible component. There is potential to abstract some of it away, but that needs a lot more abstraction to be viable. Writing a lot of code isn't necessarly bad, but could introduce typos and bugs of that nature. It also means we have more code that we might want to test.
+Most importantly, we mix our parallel and sequential composition. We want the logic to be seperated, because they do different things. Yet every parallel component now needs to do book keeping as well.
+Lastly, besides the parameter, there is no way to distinguise from the outside if this is a sequential or parallel component. Placing a single step of a sequential composition into a parallel composition might not make sense and we'd like to make this not possible on an API level.
+** Conclusion
+Current methods either don't offer composibility or they require a lot of boilerplate to be composible. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort. Support from modern frameworks could fill this gap and enable this kind of composition while also delivering smooth integration with other features of the framework.
 * TODO Desired Behaviour
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Unlike with parallel composition, there are little examples to go off of. Because of this it's easy to draw inspiration from other, already in use functions.
 ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
