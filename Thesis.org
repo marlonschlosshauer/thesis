@@ -327,10 +327,10 @@ Composibility is hugely important for software developer. Not only can we compos
 
 The benefits are plentiful. Arguably the biggest advantage is that it allows us to construct bigger things out of multple smaller things. This in turn allows us to break a problem into multiple pieces. Being able to address one concern at a time, we can not only test each piece on their own but also share components easier. Another big benefit is that we can, if constructed correctly, add to our composition forever. Because code evolves over time, this is an appealing property to have.
 Both of these attributes are important for frontend development, as we both want to be able to re-use our components and continue to add to them without worry.
-* TODO API Design
+* API Design
 This being the first step of introducing sequential composition into reacl-c, it was important to provide strong primivates. Reacl-c already has excellent tools for parallel composition, so the sequential composition should mirror them, to be intiuitive for developers.
 The implementation needs to also hide the heavily lifting done in the background and not cause any unexpected issues, that would cause it to become unuseable for any scenario. The sequential composition should not interfere with the parallel one and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially how ever they like without any limitations.
-** TODO Used types
+** Used types
 While ClojureScript is a dynamically typed language, it is helpful to create types using Clojures ~records~, to make handling and transforming data easier.
 The most fundermental type is an UI element, which reacl-c already supplies in the form of ~Item~. To signal that the next step should be executed, the ~Item~ needs to emit something, which can be recognized internally. For that purpose the ~Commit~ record exists. If an ~Item~ emits a ~Commit~, the internals will execute the next step.
 A developer could just pass an ~Item~ for composition, however, it makes sense to have the developer acknowledge that they're working with more than just a simple ~Item~. After all, the ~Item~ should at some point emit a  ~Commit~ to change the currently shown step. So, to be able to use the item for seq. composition, the developer needs to wrap it in a ~Prog~. This signals that the developer understood that the ~Item~ will eventually emit a ~Commit~. Perhabs further work  could be here, to guarente that a developer is alerted if their code never emits a ~Commit~.
@@ -338,41 +338,56 @@ In short:
 - Item: UI Element
 - Commit: What an Item emits to signal next exection
 - Prog: An Item that will Commit
-Internally, there is also a ~Bind~ type, which is the result of a ~then~ call. This holds both a ~Prog~ and a continuation, that will be called once a ~commit~ has been captured.
+Internally, there is also a ~Bind~ type, which is the result of a ~then~ call. This holds both a ~Prog~ and a continuation, that will be called once a ~Commit~ has been captured.
 ** Functions exposed by the API
 To deliver on the promises of frictionless composibility without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps.
-The essential functions are ~return~, ~then~ and ~runner~.
+The primivate functions are ~return~, ~then~ and ~runner~.
 *** return
-The ~return~ function takes an ~Item~ and turns it into a ~Prog~. This allows to go from a parallel composition (with an ~Item~) to a sequential composition (of a ~Prog~). Once an ~Item~ is a ~Prog~ the result shouldn't be further parallely composed.
+The ~return~ function takes an ~Item~ and turns it into a ~Prog~. This allows to go from a parallel composition (with an ~Item~) to a sequential composition (of a ~Prog~). Once an ~Item~ is a ~Prog~ the result can't be further parallely composed.
 *** then
-The ~then~ function is what allows us to compose multiple ~Progs~ together. For that it takes both a ~Prog~ and a continuation function (which should return another ~Prog~). The continuation will be called later, in the ~runner~ function. ~then~ creates a value of type ~Bind~ by passing the ~Prog~ and continuation parameters along. To allow for composition, the developer can also pass a ~Bind~ instead of a ~Prog~. The ~Bind~ in that case would be a previously created composition. If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind.
-#+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
-#+ATTR_LATEX: :width 200px
-[[./images/csp-transformation.png]]
-This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) very easy. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
-#+CAPTION: Definition of the ~then~ function using csp-transformation
-#+begin_src clojure
-  (defn then
-    [prog cont]
-    (if (bind? prog)
-      (make-bind (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
-      (make-bind (if (item? prog) (make-prog prog) prog) cont)))
-#+end_src
-The goal of ~then~ is to allow for easy composition, just like ~div~ from the ~dom~ namespace of reacl-c. Further composing of a ~Prog~ into another ~Prog~ can be easily done with the ~then~ function. At the same time order of execution will be preserved.
+The ~then~ function is what allows us to compose multiple ~Progs~ together. For that it takes both a ~Prog~ and a ~continuation~ function (which should return another ~Prog~). The ~continuation~ will be called later, in the ~runner~ function. ~then~ creates a value of type ~Bind~ by passing the ~Prog~ and ~continuation~ parameters along. To allow for composition, the developer can also pass a ~Bind~ instead of a ~Prog~. The ~Bind~ in that case would be a previously created composition.
+The goal of ~then~ is to allow for easy composition, just like ~div~ from the ~dom~ namespace of reacl-c. Further composing of a ~Prog~ into another ~Prog~ can be done again with the ~then~ function. It is important that the order of execution will be preserved, no matter the depth of composition.
+*** runner
+A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To do so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
+It takes a single ~Bind~ as an argument, which could contain further ~Binds~ inside of it. Once a ~commit~ is emmitted from the ~Bind~ that it displays, it calls the ~continuation~ of the ~Bind~ and displays the result of that ~continuation~. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the ~continuation~ of the new ~Bind~, which should produce yet another ~Bind~ etc.
 *** show
-~show~ extracts the ~Item~ from the passed variable, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emmited ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
-*** TODO runner
-A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
-It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
-The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping the ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
+~show~ extracts the ~Item~ from the passed variable, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~ and displays it. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emmited ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
+** Making the API more intuitive with macros
+Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
+We choose that function, among other things, because it's ~[key value]~ structure is well understood and is much easier to read than nested annoymous function calls. However, to achieve our goal we need to make use of a ClojureScript feature called macros.
+*** Why are macros used here?
+From now on, the previously defined functions like ~then~, ~return~, ~runner~ will be called primitives. While these enable us to compose sequentially, they don't work like ~let~ does. Listing #15 shows the current usage of ~then~.
+#+begin_src clojure
+  (then first
+	(fn [a]
+	  (then second
+		(fn [b]
+		  (then third
+			(fn [c]
+			  (done [a b c])))))))
+#+end_src
+The developer needs to create the annoymous functions by hand, everytime. Thankfully, the functionability of binding ~keys~ to ~values~ stays the same, as results of the components, like ~first~, will be bound to the parameter in the ~continuation~ (e.g the symbol ~a~).
+Because this is functionaly identical, we can use a macro to translate the code example above into the desired ~let~ like structure.
+*** What are macros?
+Macros are a powerful feature which lets us rewrite our ClojureScript code before it's being evaluated. We do this by selectivily telling the language what to evaluate and what to keep for /later/. That allows us to use all of ClojureScripts functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a datastructure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated.
+Macros can be found all over Clojure and ClojureScript. Functions like ~when~ and ~when-not~ are macros work in a primitive like ~if~[CD1]. Even the ~let~ function is a macro[CD2].
+*** Syntax
+The ability to delay evaluation of just some parts of our code is powerful. ClojureScript gives a couple of new symbols to decide how it should evaluate code. We can use these symbols inside of a ~defmacro~ function, which works similiar to ~defn~ and ~def~ which we define functions and values with.
+The following table lists the symbols:
+| Symbol | Name           | Function                          |
+| '      | Quoting        | Stop execution                    |
+| `      | Syntax quoting | Like ' but qualify with namespace |
+| ~      | Unquoting      | Start execution                   |
+If we quote something with ~'~ or ~`~ it will not be evaluated yet[QCEFP1]. The difference between the two is that ~`~ qualifies each expression with their full namespace. The ~~~ symbol turns on evaluation inside of a ~`~ again[QCEFP1].
+*** What are the uses cases for macros?
+Macros provide so much freedom that they to enhance not just our API but also the language itself. If the problem is beyond manipulating data, but rather about manipulating the functions that are to be used, macros are a good fit.
+They allow a developer to provide their API exactly how they imagine it. That's why we will make use of them in our implementation.
+However, while things like binding symbols to values under the hood can be used to make things easier for the developer, it can also cause confusion as developers have no idea where the symbol actually came from and can only assume that it works because a macro is used beneath the function. That assumption gives them little information though. They can also lead to confusing error messages, as another step is added before the evaluation. So macros must be used with care, even if they can be a tremendous help.
+*** Which macros will be implemented?
+Because the structure of ~let~ acts as a dead-end, so too would our ~let~ like structure act as an end for our sequential composition. As such, a macro will be implemented that wraps the ~runner~ primitive and enhances it with the ~let~ like structure. Other macros might be added for easier implementation as well, but are not necessary.
 ** How parallel and sequential composition interact
 The developer should be able to use the API like they use the other tools of reacl-c. At the same time though, there needs to be a clear border between the parallel and sequential composition, as they're fundamentally different. To guarentee that, the API introduced the ~Prog~ and ~Bind~ types. While neither work with other reacl-c tooling (to discourage incorrec usage), both contain an ~Item~. Taking a ~Prog~ and turning it into an ~Item~ is simple, thanks to ~return~. Turning an ~Item~ into a ~Prog~ or ~Bind~ is also simple and can be done with either ~show~ and ~runner~, however the later has little use if the ~Item~ does not emit a ~commit~ at some point. Functionality that could check if an ~Item~ will ever emit a ~commit~ (or other types), would be something to add in the future. Perhaps an additional keyword like ~:state:~ for the ~return~ function of the ~core~ namespace in reacl-c could be added to handle this case.
 It's worth mentiong that that at the borders further composition of the type that has been moved away from, isn't possible anymore. A ~runner~ returns an ~Item~ which from that point on can only be meaningfully parallely composed. Likewise, wrapping a ~Prog~ within a ~div~ with other ~Items~ is also meaningless. The developer needs to make a choice at those points if they really are done composing, in order to switch to the different type.
-** TODO Making the API more intuitive with macros
-Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
-*** What are macros?
-*** Syntax and use-cases
-*** Why are macros used here?
 ** What is the result of the last continutation?
 There are multiple options for what this behaviour could look like. The most obivous answer to the question, of what a ~runner~ will return at the end, is that it will the last ~Prog~ indefinitely. It could also stop displaying anything, though there is little benefit to that.
 A more interesting implementation would be to let the developer return whatever they like in the last continuation of the last ~Bind~. So instead of unwrapping a ~Prog~ into an ~Item~ to use with other ~reacl-c~ functions, the ~runner~ could return a normal value at the end. This has the benefit of making out ~runner~ be more, than just a display, which will turn in to a dead end. A possible use-case would be the chaining together HTTP requests where only the result is important.
@@ -391,14 +406,8 @@ Another use-cases is the conditional loading of data (from a server). Here the r
 *** Determining the best fit
 Seeing how all three of our use-cases benefit from having the option to react to the result, the implementation that just display the last ~Prog~ indefinitely or shows nothing - is of little use. Using the actions of ~reacl-c~ is nice, but causes unwanted complication. Giving developers the option to handle the result or ignore it, by passing a continuation as a body, allows for all use-cases to work and causes minimal overhead for the developer. This also mirrors the functionability of ~let~.
 This however raises the question what should happen if no continuation is supplied. Should the last Prog be shown indefinitely? From a user experience perspective, it's expected that an action has a reaction, thus it makes sense to not show something indefinitely, but rather display nothing. Another benefit would be that sequential composition is cleaning it self up, after being done.
-** TODO Should an Item be shown or returned?
-- Payload of commit is Item
-- Item is dead end in seq-comp
-- Maybe it's being passed up?
-- Either case it should be shown, therefore it will be shown
-- What if cont had been provided?
-** Why use a monad
-Monads are a good fit because they allow us to abstract away the actual logic (waiting for a ~Commit~, combining ~Progs~) away from the developer while also making it easy to combine actions.
+** Why monads are a good fit
+Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for a ~Commit~, combining ~Progs~) away from the developer while also making it easy to combine steps.
 The required functions also are a fit for our API. With the ~>>=~ Operation we give the developer an easy way to further compose their sequential components. ~return~ gives us a new type, which we can use to distinguish our sequential and parallel compositions from each other.
 Because we wait for a ~Commit~ to be emitted, we need to take asychronisity into account. Thus we need the previously described tools to build up a blueprint and a specially labeled environment in which that blueprint is being executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 * Implementation
