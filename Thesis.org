@@ -266,7 +266,7 @@ A possible alternative to this would be to omit the body function entirely and i
 	   info (show-account-info [personal verification])])
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular item when wanted. It should be able to be composed parallel with other items and actions should be able to be caught from it.
-* Implementation
+* API Design
 This being the first step of introducing sequential composition into reacl-c, it was important to provide strong primivates. Reacl-c already has excellent tools for parallel composition, so the sequential composition should mirror them, to be intiuitive for developers.
 The implementation needs to also hide the heavily lifting done in the background and not cause any unexpected issues, that would cause it to become unuseable for any scenario. The sequential composition should not interfere with the parallel one and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially how ever they like without any limitations.
 ** Used types
@@ -304,22 +304,6 @@ The goal of ~then~ is to allow for easy composition, just like ~div~ from the ~d
 A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To be done so, either ~show~ or ~runner~ needs to be used, to translate the sequential composition into a parallel composition. While ~show~ just displays the ~Item~ inside, the ~runner~ function acts as a window into sequential execution, as it captures emitted ~commits~ and cycles through the given steps.
 It takes a single ~Bind~ as an argument, which could contain further ~Binds~. Once a ~commit~ is emmitted, it calls the continuation of the ~Bind~ and displays the result. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the continuation of the new ~Bind~, which should produce another ~Bind~ etc.
 The ~runner~ itself holds the current ~Bind~ as state (see "Tail Call Optimisation" for why), while wrapping the ~Item~ with a ~handle-action~ to listen for an emitted ~commit~.
-#+CAPTION: Definition of the ~runner~ function using trampolines for tail-call-optimisation
-#+begin_src clojure
-  (defn runner  [b]
-    (c/isolate-state
-     b
-     (c/dynamic
-      (fn [st]
-	(c/handle-action
-	 (cond
-	   (bind? st) (show (bind-item st))
-	   (prog? st) (show st)
-	   :else st)
-	 (fn [st ac]
-	   (if (and (commit? ac) (bind? st))
-	     (c/return :state ((bind-continuation st) (commit-payload ac))))))))))
-#+end_src
 ** How parallel and sequential composition interact
 The developer should be able to use the API like they use the other tools of reacl-c. At the same time though, there needs to be a clear border between the parallel and sequential composition, as they're fundamentally different. To guarentee that, the API introduced the ~Prog~ and ~Bind~ types. While neither work with other reacl-c tooling (to discourage incorrec usage), both contain an ~Item~. Taking a ~Prog~ and turning it into an ~Item~ is simple, thanks to ~return~. Turning an ~Item~ into a ~Prog~ or ~Bind~ is also simple and can be done with either ~show~ and ~runner~, however the later has little use if the ~Item~ does not emit a ~commit~ at some point. Functionality that could check if an ~Item~ will ever emit a ~commit~ (or other types), would be something to add in the future. Perhaps an additional keyword like ~:state:~ for the ~return~ function of the ~core~ namespace in reacl-c could be added to handle this case.
 It's worth mentiong that that at the borders further composition of the type that has been moved away from, isn't possible anymore. A ~runner~ returns an ~Item~ which from that point on can only be meaningfully parallely composed. Likewise, wrapping a ~Prog~ within a ~div~ with other ~Items~ is also meaningless. The developer needs to make a choice at those points if they really are done composing, in order to switch to the different type.
@@ -327,48 +311,7 @@ It's worth mentiong that that at the borders further composition of the type tha
 Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
 *** What are macros?
 *** Syntax and use-cases
-*** Setup
-Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are expanded during compile time. Because Clojure is hosted on Java, which runs on the JVM, this is no issue. ClojureScript however, is hosted on JavaScript, which is an interpreted language. This means the compilation process needes to be kept in mind when writing ClojureScript macros.
-Regardless, it is still possible to both write Macros for ClojureScript and write Macros that use ClojureScript code.
-There are multiple ways to write a Macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword to the namespace defined in the ~.clj~.
-#+CAPTION: Example definition of a macro in ~macros.clj~
-#+begin_src clojure
-  (ns code.macros)
-  (defmacro example-macro [x] (code.other/function x))
-#+end_src
-#+CAPTION: ClojureScript file ~actual.cljs~ that imports the previously in ~macros.clj~  defined macro with ~:require-macros~ keyword
-#+begin_src clojure
-  (ns code.test
-    (:require [code.other])
-    (:require-macros [code.macros :as m]))
-  (m/example-macro "example")
-#+end_src
-
-
-Listing #13 and #14 show how to both create and import a macro. They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with it's entire namespace. Namespaces that want to use the macro need to also import the namespace specified in the macro (in our case the ~code.other~ namespace). It's advised to create another namespace that abstracts this work away by both providing both the needed namespaces and the macros.
-*** Macro implementation
-The goal of our macro is to re-write the passing of multiple ~Progs~ into a series of ~then~ chains, that bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~(symbol,value)~ pairs to our macro. Internally the macro will re-write this to functional ClojureScript code.
-#+CAPTION: Macro takes care of wrapping ~Progs~ in a ~then~ and creates annonymous functions automatically (while binding symbols to function parameters)
-#+begin_src clojure
-  ;; Before macro
-  (runner (then prog1
-		(fn [x]
-		  (then prog2
-			(fn [y] prog3)))))
-
-  ;; After macro
-  (runner [x prog1
-	   y prog2] prog3)
-#+end_src
-
-Listing #15 gives a glimps of the logic. Much like a ~let~, we want to use anynomous function to bind our symbols to something ClojureScript can work with (like values). Because we already need to supply a ~continuation~ for our ~then~ function, we can use the parameters of that function to bind our symbols too (see Listing #15 e.g. symbol ~x~ moving from being parameter to being symbol).
-#+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the annoymous functions
-#+begin_src clojure
-  (defmacro -then [[var val & rest :as steps] end-expr]
-    (if steps
-      `(code.bind/then ~val (fn [~var] (-then ~rest ~(seq end-expr))))
-      end-expr))
-#+end_src
+*** Why are macros used here?
 ** What is the result of the last continutation?
 There are multiple options for what this behaviour could look like. The most obivous answer to the question, of what a ~runner~ will return at the end, is that it will the last ~Prog~ indefinitely. It could also stop displaying anything, though there is little benefit to that.
 A more interesting implementation would be to let the developer return whatever they like in the last continuation of the last ~Bind~. So instead of unwrapping a ~Prog~ into an ~Item~ to use with other ~reacl-c~ functions, the ~runner~ could return a normal value at the end. This has the benefit of making out ~runner~ be more, than just a display, which will turn in to a dead end. A possible use-case would be the chaining together HTTP requests where only the result is important.
@@ -393,6 +336,81 @@ This however raises the question what should happen if no continuation is suppli
 - Maybe it's being passed up?
 - Either case it should be shown, therefore it will be shown
 - What if cont had been provided?
+* Implementation
+** then
+*** Code
+*** CSP tranformation
+** runner
+*** Code
+#+CAPTION: Definition of the ~runner~ function using trampolines for tail-call-optimisation
+#+begin_src clojure
+  (defn runner
+    [b]
+    {:pre [(or (bind? b) (prog? b))]}
+    (c/local-state
+     b
+     (c/dynamic
+      (fn [[outter st]]
+	(c/handle-action
+	 (c/focus
+	  first-lens
+	  (show st))
+	 (fn [[outter st] ac]
+	   (if (and (commit? ac) (bind? st))
+	     (c/return :state [outter ((bind-continuation st) (commit-payload ac))]))))))))
+#+end_src
+*** Lens
+** Macros
+*** Setup
+Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are expanded during compile time. Because Clojure is hosted on Java, which runs on the JVM, this is no issue. ClojureScript however, is hosted on JavaScript, which is an interpreted language. This means the compilation process needes to be kept in mind when writing ClojureScript macros.
+Regardless, it is still possible to both write Macros for ClojureScript and write Macros that use ClojureScript code.
+There are multiple ways to write a Macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword to the namespace defined in the ~.clj~.
+#+CAPTION: Example definition of a macro in ~macros.clj~
+#+begin_src clojure
+  (ns code.macros)
+  (defmacro example-macro [x] (code.other/function x))
+#+end_src
+#+CAPTION: ClojureScript file ~actual.cljs~ that imports the previously in ~macros.clj~  defined macro with ~:require-macros~ keyword
+#+begin_src clojure
+  (ns code.test
+    (:require [code.other])
+    (:require-macros [code.macros :as m]))
+  (m/example-macro "example")
+#+end_src
+
+
+Listing #13 and #14 show how to both create and import a macro. They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with it's entire namespace. Namespaces that want to use the macro need to also import the namespace specified in the macro (in our case the ~code.other~ namespace). It's advised to create another namespace that abstracts this work away by both providing both the needed namespaces and the macros.
+*** Macro: then
+The goal of our macro is to re-write the passing of multiple ~Progs~ into a series of ~then~ chains, that bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~(symbol,value)~ pairs to our macro. Internally the macro will re-write this to functional ClojureScript code.
+#+CAPTION: Macro takes care of wrapping ~Progs~ in a ~then~ and creates annonymous functions automatically (while binding symbols to function parameters)
+#+begin_src clojure
+  ;; Before macro
+  (runner (then prog1
+		(fn [x]
+		  (then prog2
+			(fn [y] prog3)))))
+
+  ;; After macro
+  (runner [x prog1
+	   y prog2] prog3)
+#+end_src
+
+Listing #15 gives a glimps of the logic. Much like a ~let~, we want to use anynomous function to bind our symbols to something ClojureScript can work with (like values). Because we already need to supply a ~continuation~ for our ~then~ function, we can use the parameters of that function to bind our symbols too (see Listing #15 e.g. symbol ~x~ moving from being parameter to being symbol).
+#+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the annoymous functions
+#+begin_src clojure
+  (defmacro then [[var val & rest :as steps] end-expr]
+    (if steps
+      `(code.bind/then ~val (fn [~var] (-then ~rest ~(seq end-expr))))
+      end-expr))
+#+end_src
+*** Macro: runner
+#+begin_src clojure
+  (defmacro runner
+    ([x]
+     `(runner ~x (fn [])))
+    ([x y]
+     `(code.bind/runner (then ~x  ~y))))
+#+end_src
 ** Tail Call Optimisation
 Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Lastly, with composition it would undesirable to have to worry about depth of composition.
 It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
@@ -410,6 +428,9 @@ Another limitation is that a ~runner~ is a dead end for sequential composition, 
 Error handling for the sequential composition is not explicitly supported. Developers need to handle errors by hand in the continuation of the next ~Bind~.
 Likewise, there is no way to terminate early, like a ~Maybe~ Monad. Seeing how the use-case is all about making it possible to compose steps together, should it even be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
 * TODO Examples
+** Login Page
+** Repeatable Workflow
+** Endless Loop
 * TODO Possible improvements
 - Early termination
 - Different types of commit
