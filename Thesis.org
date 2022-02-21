@@ -285,7 +285,7 @@ Most importantly, we mix our parallel and sequential composition. We want the lo
 Lastly, besides the parameter, there is no way to distinguise from the outside if this is a sequential or parallel component. Placing a single step of a sequential composition into a parallel composition might not make sense and we'd like to make this not possible on an API level.
 ** Conclusion
 Current methods either don't offer composibility or they require a lot of boilerplate to be composible. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort. Support from modern frameworks could fill this gap and enable this kind of composition while also delivering smooth integration with other features of the framework.
-* TODO Desired Behaviour
+* Desired Behaviour
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Unlike with parallel composition, there are little examples to go off of. Because of this it's easy to draw inspiration from other, already in use functions.
 ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
 #+CAPTION: Using ~let~ to bind values to the names ~one~, ~two~, ~three~
@@ -299,7 +299,7 @@ Another benefit of adopting this style is that ClojureScript developers would al
 
 An important feature for our sequantial composition is the need for synchronosity. Only one value is to be shown to the user at a time and that is the current value in our list of ~mapping:value~ pairs. Execution of pairs further in the list is halted until they're reached. The same should hold true for HTTP requests which could be added to the list.
 Future pairs should also be able to access the value returned by the earlier pairs, just like how you can access ~one~ while calculating the value of ~two~ in our ~let~ example earlier.
-Of-course individual values in the ~mapping:value~ pairs should also be able to be composible with other values, so one step in one flow, can be an entire different, nested, flow.
+Individual values in the ~mapping:value~ pairs should also be able to be composible with other values, so one step in one flow, can be an entire different, nested, flow. For that we need a function to compose further.
 
 Listings 5 shows our earlier example implemented with the desired functionality given by the framework. Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared names) at the end.
 #+CAPTION: Earlier login example written in a ~let~ style
@@ -316,6 +316,8 @@ A possible alternative to this would be to omit the body function entirely and i
 	   info (show-account-info [personal verification])])
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular item when wanted. It should be able to be composed parallel with other items and actions should be able to be caught from it.
+Inside of the ~runner~ we will have steps, those steps should be composible thanks to another function. For now we can steal terminology from monads and call this function ~bind~ or ~then~.
+These two functions should be the primitives of our implementation.
 * TODO Why composition is important
 Composition has multiple benefits
 - Shareable (Re-usable)
