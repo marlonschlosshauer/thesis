@@ -72,6 +72,10 @@ To make composing of items easier, reacl-c takes a different approach to state t
 
 A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which captures the action and reacts to it. This enables the developer to define a (child) item completely independently from their potential future parents, leading to more reusable and more composible components.
 Instead of having the parent pass down a function to, e.g manipulate state, the component can emit an action upwards and trigger the same functionability in the parent. Another benefit is that the parent component can adapt the output of the emitted action further.
+
+#+CAPTION: Showcasing the inversion of control by comparing emiting of actions to passing down callbacks. Each circle is a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
+[[./images/emit-vs-callback.png]]
+
 As an example: A button toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
 #+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 #+begin_src clojure
