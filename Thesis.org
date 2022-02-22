@@ -608,3 +608,11 @@ Another limitation is that a ~runner~ is a dead end for sequential composition, 
 - force prog to commit
 - lenses for seq comp?
 * TODO Conclusion
+* Sources
+- [CD1] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
+- [CD2] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
+- [QCEFP1] Quick Clojure: Effective Functional Programming - 10. Macros
+- [RC1] https://github.com/active-group/reacl-c/blob/0.10.10/src/reacl_c/core.cljc#L94
+- [KH1] https://github.com/khinsen/monads-in-clojure
+
+
