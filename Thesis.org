@@ -417,7 +417,7 @@ It is therefore important to abstract away the bind logic from the developer, to
 While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
 Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now in a loop, the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends. The idea is to pull our function call up, instead of going deeper.
 *** Custom TCO
-While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed. We will revisit the trampoline again during the implementation.
+While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be to be developed. We will revisit the concept of the trampoline again during the implementation.
 * Implementation
 Previously we have discussed which functions our API should offer, now we will focus on implementing these individual functions and features. Being Aside from being functioning, we will also talk about optimizing the ~runner~ function and implementing macros for easy of use.
 ** then
@@ -464,11 +464,11 @@ As such we will show the code in its entirety here and go in depth about individ
     (c/local-state
      b
      (c/dynamic
-      (fn [[outter st]]
+      (fn [[_ inner]]
 	(c/handle-action
 	 (c/focus
 	  first-lens
-	  (show st))
+	  (show inner))
 	 (fn [[outter st] ac]
 	   (if (and (commit? ac) (bind? st))
 	     (c/return :state [outter ((bind-continuation st) (commit-payload ac))]))))))))
@@ -499,11 +499,28 @@ Because we don't want the internal state of our ~runner~ to leak, but we do want
 Our lense is a function with multiple arities. That means it can take different amounts of parameters. Ours being of aritiy of two, means it has two different signatures. A signature where it gets one parameter and a signature where it takes two parameters.
 To restrict access, so when it is called from the perspective of the child, the signature with one parameter is called. Here the list inner, outter and what else is destructured and everything besides the ~first~ element is ignored. That ~first~ element is then returned.
 On changes to the state from within our child, the signature with two parameters is called. The change being the second parameter, here called ~small~. We again destructure the first argument but now ignore the previously named ~first~ and access the previously ignored ~rest~. All that is left is to combine them with ~cons~ and return them as a ~vector~.
-*** TODO Implementing Tail Call Optimization
-While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven approach that reacl-c uses, a custom implementation needed to developed.
-The principle of the trampoline remains, but instead of just calling the function, it is required to pass a ~Bind~ upwards and wait for a commit from the ~Bind~. This is all done inside of the ~runner~ function. See Listing 15 for the code.
-The way it works is as follows: The current ~Bind~ is kept as the state of the ~runner~. The ~Item~ of that ~Bind~ is shown and wrapped by a ~handle-action~, to capture possible ~Commits~. Once a ~Commit~ appears, the continuation of the ~Bind~ is called and the result is set as the new state, which causes reacl-c to update the screen. The update will replace the previously displayed ~Item~ of the old ~Bind~, with the ~Item~ of the new ~Bind~. Finally, if another commit appears the continuation of the new ~Bind~ will be called instead of the old continuation, thus producing the next step.
-Because we change locale state, we don't have to dive into a nested structure. And because of the earlier mentioned CSP-transformation in the ~then~ function, we can be sure that any ~Bind~ will be flat (and not need to be flattened by the ~runner~).
+*** Implementing Tail Call Optimization
+Previously we discussed what TCO is and why we want it. Now it is time to take a deeper look at how we implement it by examing line 2-5 and 10-12 in listing 15.
+
+Like mentioned earlier ClojureScript already provides TCO with the ~loop~ macro, unfortunately we can't take advantage of it because of the asychronos nature of reacl-c. This is not a problem as we can use the previously explained concept of trampolines to make our own TCO.
+
+The basic idea is to save the ~Bind~ in our state and update the state each time a ~Commit~ comes in, with the result of the ~continuation~ of our ~Bind~. This works as follows in detail:
+
+In our ~runner~ we define ~Bind~ that was passed into the function as local state using the ~local-state~ function. This is the first part of our trampoline. Next we call ~dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 5 to ~outter~ (which is immidialty discarded with ~_~) and ~inner~. This is clever, as we now have access to the state of our ~runner~ component, through the parameter of the function. We need to access state, because we want to both display the ~Bind~ and wait for it to ~emit~ a ~Commit~ (using the ~handle-action~ function).
+Now, in line 10, we define the function that will be called once an action is emitted. Like mentioned earlier, if the action is a ~Commit~, we execute the code in line 12. Here we set our state to the result of the ~continution~ of the ~Bind~ of our ~inner~ state, completing our trampoline. Because we set our state, the component will be render again, this time with the updated state, which is the next step in our sequential composition, because it is the result of the ~continuation~ of our ~Bind~.
+** show
+To display our sequential composition we can use the ~runner~, if we however just want to display one step (indefinitely), we can use ~show~. This is a simple helper function that is used inside of the ~runner~ to display the ~Bind~. At it's core it has ~cond~ call, which allows us to react to specific conditions. This is necessary, because if we get an ~Item~, we can just display it. If we get a ~Prog~, we need to unwrap the ~Item~ from it. If we get a ~Bind~ we first need to get the ~Prog~ inside of it, before we again can unwrap it. Lastly, to make usage easier, if anything else is passed, we display an empty ~fragment~, which is equavialent to nothing. Getting passed neither ~Prog~ or ~Bind~ is the case after finishing the last ~Bind~. See listing 25 for the entire code of the ~show~ function.
+#+CAPTION: Code for the ~show~ function.
+#+begin_src clojure
+  (defn show
+    [x]
+    {:post [(c/item? %)]}
+    (cond
+      (prog? x) (prog-item x)
+      (bind? x) (prog-item (bind-item x))
+      (c/item? x) x
+      :else (c/fragment)))
+#+end_src
 ** TODO Macros
 *** Setup
 Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are expanded during compile time. Because Clojure is hosted on Java, which runs on the JVM, this is no issue. ClojureScript however, is hosted on JavaScript, which is an interpreted language. This means the compilation process needes to be kept in mind when writing ClojureScript macros.
