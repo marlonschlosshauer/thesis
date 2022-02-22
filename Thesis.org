@@ -450,7 +450,7 @@ Now, inside of our ~then~ function we need to handle both cases. For this we dif
       (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
 #+end_src
 To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our functions. In this case we say that the ~prog~ can be a ~Prog~, ~Bind~ or even an ~Item~. The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
-** TODO runner
+** runner
 The place for our monad to be executed in is the ~runner~. It will receive a ~Prog~ or ~Bind~. The ~runner~ is the most complex function of our API because of all the things it needs to do:
 1. Book-keeping of state for steps
 2. Catch emitted ~Commits~
@@ -595,17 +595,15 @@ For this we will simply wrap our ~then~ macro with our primitive ~runner~ from t
     ([x y]
      `(code.bind/runner (then ~x  ~y))))
 #+end_src
-** TODO Limitations
-While the current implementation achieves what it sets out, some compromises had to be made. First, like mentioned earlier, it is being reliad on the fact that the developer actually emits a ~commit~ in what they label a ~Prog~. There is currently no logic to make sure this is done.
-Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. The current API offers really only primites and none of the deep functionality which is present in the parallel composibility in reacl-c.
-Error handling for the sequential composition is not explicitly supported. Developers need to handle errors by hand in the continuation of the next ~Bind~.
-Likewise, there is no way to terminate early, like a ~Maybe~ Monad. Seeing how the use-case is all about making it possible to compose steps together, should it even be possible to premeaturely exit the chain of operation, from within a ~Prog~? It's important to keep in mind that a ~Prog~ could be used from a different part of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
+** Limitations
+While the current implementation achieves what it set out to do, some compromises had to be made. First, like mentioned earlier, it is being relied on the fact that the developer actually emits a ~Commit~ in what they label a ~Prog~. Sadly, there is currently no logic to make sure that the developer is forced too or reminded if they aren't.
+Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. Further more, the current API offers only primitives and none of the deep functionality which is present in reacl-c for the parallel composibility. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there isn't an ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like a ~Maybe~ monad.
 * TODO Examples
 ** Login Page
 ** Repeatable Workflow
 ** Endless Loop
 * TODO Possible improvements
-- Early termination
+- Early termination; Seeing how the use-case is all about making it possible to compose steps together, asking if it even should be possible to premeaturely exit the chain of operation, from within a ~Prog~, is valid, however it's important to keep in mind that a ~Prog~ could be used from different parts of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
 - Different types of commit
 - force prog to commit
 - lenses for seq comp?
