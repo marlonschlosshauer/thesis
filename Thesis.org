@@ -521,9 +521,10 @@ To display our sequential composition we can use the ~runner~, if we however jus
       (c/item? x) x
       :else (c/fragment)))
 #+end_src
-** TODO Macros
+** Macros
+The available primitives already enable the developer to craft elaborate sequential composition, whoever they aren't able to provide ~let~ like usage on their own. For this reason, we will implement macros for our API. Only a macro version of the ~runner~ is required, but it makes more sense to enhance the ~then~ primitive first and later wrap the ~runner~ with something that takes advantage of the ~then~ macro. Before we dive into the macros themselves, we first need to take a look at how macros work in ClojureScript.
 *** Setup
-Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are expanded during compile time. Because Clojure is hosted on Java, which runs on the JVM, this is no issue. ClojureScript however, is hosted on JavaScript, which is an interpreted language. This means the compilation process needes to be kept in mind when writing ClojureScript macros.
+Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are run during compile process of ClojureScript. This means the compilation process needs to be kept in mind when writing ClojureScript macros. You cannot, for instance, put macros in a ~.cljs~ file because of this.
 Regardless, it is still possible to both write Macros for ClojureScript and write Macros that use ClojureScript code.
 There are multiple ways to write a Macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword to the namespace defined in the ~.clj~.
 #+CAPTION: Example definition of a macro in ~macros.clj~
@@ -540,10 +541,10 @@ There are multiple ways to write a Macro for use in ClojureScript. The easiest w
 #+end_src
 
 
-Listing #13 and #14 show how to both create and import a macro. They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with it's entire namespace. Namespaces that want to use the macro need to also import the namespace specified in the macro (in our case the ~code.other~ namespace). It's advised to create another namespace that abstracts this work away by both providing both the needed namespaces and the macros.
-*** Macro: then
-The goal of our macro is to re-write the passing of multiple ~Progs~ into a series of ~then~ chains, that bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~(symbol,value)~ pairs to our macro. Internally the macro will re-write this to functional ClojureScript code.
-#+CAPTION: Macro takes care of wrapping ~Progs~ in a ~then~ and creates annonymous functions automatically (while binding symbols to function parameters)
+Listing 13 and 14 show how to both create and import a macro. They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with its entire namespace. Namespaces that want to use the macro need to also require the namespace specified in the macro (in our case the ~code.other~ namespace). It's advised to create another namespace that abstracts this work away by providing both the needed namespaces and the macros.
+*** then
+The goal of our macro is to rewrite the passing of multiple ~Progs~ into a series of ~then~ calls, which then bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~(symbol,value)~ pairs to our macro. Internally the macro will change this to functional ClojureScript code.
+#+CAPTION: The macro will take care of wrapping ~Progs~ in a ~then~ and creates an annonymous functions each time (while binding symbols to function parameters)
 #+begin_src clojure
   ;; Before macro
   (runner (then prog1
@@ -555,16 +556,38 @@ The goal of our macro is to re-write the passing of multiple ~Progs~ into a seri
   (runner [x prog1
 	   y prog2] prog3)
 #+end_src
+Listing 20 hints at what needs to be done. The strategy will be to generate the anonymous functions ourselfs and to use the supplied symbols (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 21 shows the macro in it's entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[KH1].
 
-Listing #15 gives a glimps of the logic. Much like a ~let~, we want to use anynomous function to bind our symbols to something ClojureScript can work with (like values). Because we already need to supply a ~continuation~ for our ~then~ function, we can use the parameters of that function to bind our symbols too (see Listing #15 e.g. symbol ~x~ moving from being parameter to being symbol).
+
 #+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the annoymous functions
-#+begin_src clojure
-  (defmacro then [[var val & rest :as steps] end-expr]
+#+begin_src clojure -n 1
+  (defmacro then
+    [[var val & rest :as steps] end-expr]
+    {:pre [(even? (count steps))]}
     (if steps
-      `(code.bind/then ~val (fn [~var] (-then ~rest ~(seq end-expr))))
+      `(code.bind/then ~val (fn [~var] (then ~rest ~(seq end-expr))))
       end-expr))
 #+end_src
-*** Macro: runner
+
+Our macro takes two arguments. A list of values and an end expression, just like ~let~ does. The list of values is then destructured into three parts. ~var~, ~val~ and ~rest~. The ~var~ will be our symbol, ~val~ the value our ~var~ will be associated too and ~rest~ is whats left of our list.
+After making sure that our list is balanced, meaning it has just as many ~vars~ as ~vals~, we check if we have ~steps~ left. ~Steps~ is just a reference to our ~var~ and ~val~, as well as ~rest~. If that's the case, we stop execution of our code with the ~`~ symbol and begin to build the macro part of our function. We want to call the primitive ~then~ from our ~bind~ namespace, like mentioned earlier, to do this we need to spell out the entire namespace, as we're currently in a ~.clj~ file and cannot import the ~.cljs~ namespace.
+Our primitive ~then~ takes two parameters. First a ~Prog~ and second a ~continuation~ function. We use the ~~~ symbol to pass undo the syntax quote and pass the ~val~ as is. Then we continue and build our anonymous functition. For our macro to work just like ~let~ we need to pass our ~var~, which stand for our symbol (e.g. ~x~ and ~y~ earlier), as the parameter of our anonymous function.
+Inside of our function we then do a recursive call to our macro, once again undoing the syntax quoating to pass the ~rest~ of our list and our ~end-expr~ (which is wrapped by a list, to stop it from being executed). Our ~end-expr~ will be executed once we've worked through all ~steps~. Important to remember is that ~end-expr~ itself might try to access the symbols given in to our ~then~. This will work, because ~end-expr~ is at the bottom of all of our anonymous functions, which provide the context in which these symbols are bound to values.
+See listing 22 to see how the nesting of anonymous functions works out, to allow ~end-expr~ to have access to the symbols.
+#+CAPTION: Example of where ~end-expr~ will be executed
+#+begin_src clojure
+  (then prog1
+	(fn [x]
+	  (then prog2
+		(fn [y]
+		  (then prog3
+			;; Assuming end-expr accesses x y z
+			(fn [z] (end-expr)))))))
+#+end_src
+Now our ~then~ macro can be called exactly like we would with ~let~, simply by doing the following:  ~(then [a prog1 b prog2] (fn [] (+ a b)))~ we are able to chain together ~prog1~ and ~prog2~. What we get back is a ~Bind~ of the both ~Progs~.
+*** runner
+With our ~then~ we have greatly improved the desired developer experience, however, the result still returns a ~Bind~. That is fine, as we might want to further compose this. However, if we want to use our sequential composition we still need to wrap our ~then~ expression with a ~runner~ to run it. To further simplify the experience we will create another macro, this time for the ~runner~ function, to give developers the option to do everything within a single call.
+For this we will simply wrap our ~then~ macro with our primitive ~runner~ from the ~bind~ namespace. Again we syntax quoate our call and undo the quote for our values. To add even more convienence our ~runner~ macro has an aritiy of two. If the developer is not interested in supplying an ~end-expr~ function, we will pass an empty function for them. The resulting code is simple but works and can be seen in listing 24.
 #+begin_src clojure
   (defmacro runner
     ([x]
@@ -572,7 +595,7 @@ Listing #15 gives a glimps of the logic. Much like a ~let~, we want to use anyno
     ([x y]
      `(code.bind/runner (then ~x  ~y))))
 #+end_src
-** Limitations
+** TODO Limitations
 While the current implementation achieves what it sets out, some compromises had to be made. First, like mentioned earlier, it is being reliad on the fact that the developer actually emits a ~commit~ in what they label a ~Prog~. There is currently no logic to make sure this is done.
 Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. The current API offers really only primites and none of the deep functionality which is present in the parallel composibility in reacl-c.
 Error handling for the sequential composition is not explicitly supported. Developers need to handle errors by hand in the continuation of the next ~Bind~.
