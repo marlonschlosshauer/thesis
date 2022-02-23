@@ -649,13 +649,12 @@ Our sequential composition for this process can be seen in listing 27. Noteworth
 	       _ (showcase [personal-info test-info result])
 	       _ (test-patient-for-disease)]))
 #+end_src
-* TODO Possible improvements
-- Early termination; Seeing how the use-case is all about making it possible to compose steps together, asking if it even should be possible to premeaturely exit the chain of operation, from within a ~Prog~, is valid, however it's important to keep in mind that a ~Prog~ could be used from different parts of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
-- Different types of commit
-- map actions to commit (from outside)
-- helper functions like ~def-prog~
-- force prog to commit
-- lenses for seq comp?
+* Possible improvements
+While it can be argued that our API does what it set out to do, there are a various ideas that had been discarded, to spend more time improving the core of the API.
+During the implementation of the runner the idea for early termination came up. Similiar to something the ~Maybe~ monad, developers could throw a different type of ~Commit~ to tell the chain to break. Inside of the ~runner~ the developer then would have the option to handle the early termination. Wheter this could be done by adding a third parameter, or by giving a different kind of ~runner~ is yet to be determined. However, giving developers the ability to break the chain at any time could lead to problems, as, much like with ~Progs~ actually firing ~Commits~, we can't communicate to the developer that this ~Prog~ might terminate early. This could be solved by making a dedicated type, that only works with a sub-set of operations, but is also a lot of work.
+But, not just a seperate type for terminating early could be interesting. Having the ability to communicate that an error has occured and being able to handle that (maybe even in different steps of severity) would be beneficial. Imagine if a lot of time has passed since step 1 and step 2 and the user gets logged out. Instead of having to handle the error either outside of the ~runner~ or inside of every step, we could dedicate a space inside of the ~runner~ for that.
+Besides new types, another improvement would be to force a developer to ~Commit~ something inside of a ~Prog~. The implementation for this is unclear, however the feature is highly important as it could be a major source of bugs.
+Lastly, helper functions for sequential composition, like the ones that exist in reacl-c for parallel composition, could be a possible addition. Things like a ~def-prog~ function that works like ~def-item~ but also wraps the resulting ~Item~ inside of a ~return~. Or the ability to map actions emitted from a component, to be ~Commits~, so the actual component doesn't need to be changed, but can still be used inside of a sequential-composition. There are problaly many more applications of the deep pool of functions inside of reacl-c, so these are just some that had been found.
 * TODO Conclusion
 * Sources
 - [CD1] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
