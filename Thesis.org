@@ -11,8 +11,8 @@
 #+LATEX: \newpage
 
 * Abstract
-Composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel- and sequential-composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support for it (or lack thereof) and explore a developer friendly interface.
-Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed interface for it. At the end we give examples for using our implementation for sequential composition and discuss possible improvements to the implementation.
+The composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel- and sequential-composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support for it (or lack thereof) and explore a developer friendly interface for sequential composition.
+Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed interface for it. At the end we give examples of sequential composition using our implementation and discuss possible improvements to the implementation.
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as a component, to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel, as we can group elements into something that is to work together with each other. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
@@ -523,7 +523,7 @@ To display our sequential composition we can use the ~runner~, if we however jus
 #+end_src
 ** Macros
 The available primitives already enable the developer to craft elaborate sequential composition, whoever they aren't able to provide ~let~ like usage on their own. For this reason, we will implement macros for our API. Only a macro version of the ~runner~ is required, but it makes more sense to enhance the ~then~ primitive first and later wrap the ~runner~ with something that takes advantage of the ~then~ macro. Before we dive into the macros themselves, we first need to take a look at how macros work in ClojureScript.
-*** Setup
+*** TODO Setup
 Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are run during compile process of ClojureScript. This means the compilation process needs to be kept in mind when writing ClojureScript macros. You cannot, for instance, put macros in a ~.cljs~ file because of this.
 Regardless, it is still possible to both write Macros for ClojureScript and write Macros that use ClojureScript code.
 There are multiple ways to write a Macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword to the namespace defined in the ~.clj~.
@@ -554,7 +554,8 @@ The goal of our macro is to rewrite the passing of multiple ~Progs~ into a serie
 
   ;; After macro
   (runner [x prog1
-	   y prog2] prog3)
+	   y prog2
+	   _ prog3])
 #+end_src
 Listing 20 hints at what needs to be done. The strategy will be to generate the anonymous functions ourselfs and to use the supplied symbols (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 21 shows the macro in it's entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[KH1].
 
@@ -632,6 +633,20 @@ Because our ~then~ takes a ~continuation~ for its next step, it's trivial to cre
 	       _ (infinite-loop (inc a))]))
 #+end_src
 It could be possible that there are even conciser methods possible, however this implementation is small enough for now. Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~_~ to ignore its result, like they would also do with a function parameter.
+** TODO Deeply composing
+#+CAPTION: Showcasing composition by using the primitive ~then~ to first compose a complex structure, before inserting it into our macro ~runner~.
+#+begin_src clojure
+  (def mix-primitives-macros
+    (m/runner [a (item 1)
+	       b (b/then (item (inc a))
+			 (fn [] (b/then (item (+ a 2))
+					(fn [x] (item (inc x))))))
+	       c (item (+ a b))]
+	      (fn []
+		(let [res (+ c 1)]
+		  (println res)
+		  res))))
+#+end_src
 ** Repeatable workflow
 In the previous example we saw the benefit of using recursion in our ~runner~. Let's push this further by going beyond a single step. Some software systems are nothing but an endless loop of the same operations. Ordering processes like vending machines come to mind. These are now trivial to create (and enhance) thanks to our sequential composition.
 Let's take a disease testing facility as an example. We're going to model the following steps:
