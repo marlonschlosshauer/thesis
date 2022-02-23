@@ -598,13 +598,62 @@ For this we will simply wrap our ~then~ macro with our primitive ~runner~ from t
 ** Limitations
 While the current implementation achieves what it set out to do, some compromises had to be made. First, like mentioned earlier, it is being relied on the fact that the developer actually emits a ~Commit~ in what they label a ~Prog~. Sadly, there is currently no logic to make sure that the developer is forced too or reminded if they aren't.
 Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. Further more, the current API offers only primitives and none of the deep functionality which is present in reacl-c for the parallel composibility. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there isn't an ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like a ~Maybe~ monad.
-* TODO Examples
-** Login Page
-** Repeatable Workflow
-** Endless Loop
+* Examples
+With our API now defined and implemented we can take a quick look some examples, to see if we have improved the developer experience.
+** Sign-up component
+Our initial example, to explain what sequential composition is, was a sign-up component. That makes sense because modern sign-up processes are often split up into parts. Lets build that three step sign-up process again, this time with our API.
+#+CAPTION: Example usage of our API for the sign-up process shown in the "Motivation" chapter
+#+begin_src clojure
+  (runner [personal (return personal-info)
+	   code (return verification-code)
+	   _ (done [personal code])])
+#+end_src
+Listing 25 shows the sequential composition. We wrap the components before passing them. If the developer knows that the item will only be used in a sequential composition they can of course also use ~def~ and wrap their ~Item~ inside with a ~return~.
+The only necessary change inside of our components is to emit a ~Commit~. See listing 26 for this, where we change the behaviour of the ~personal-info~ component.
+#+CAPTION: Excerp of the ~personal-info~ component. Parts have been removed for clarities sake. This is a parallel composition that emits a ~Commit~ once the user presses the button.
+#+begin_src clojure
+  (c/def-item personal-info
+    (c/local-state
+     {:name "" :email ""}
+     (c/dynamic
+      (fn [[outter inner]]
+	;; Input code ...
+	(dom/button
+	 {:onclick (fn [state action] (c/return :action (bind/make-commit inner)))}
+	 "Continue")))))
+#+end_src
+This is all that is needed to create our sign-up process. The ~runner~ can now be placed into a parallel composition.
+** Endless loop
+Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this trivial even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how often we have looped. Listing 26 shows an example of an infinite loop using our macros.
+#+CAPTION: Example of infinite loop using macros
+#+begin_src clojure
+  (defn infinite-loop [n]
+    (m/runner [a (item n) ;; helper function which creates Prog
+	       _ (infinite-loop (inc a))]))
+#+end_src
+It could be possible that there are even conciser methods possible, however this implementation is small enough for now. Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~_~ to ignore its result, like they would also do with a function parameter.
+** Repeatable workflow
+In the previous example we saw the benefit of using recursion in our ~runner~. Let's push this further by going beyond a single step. Some software systems are nothing but an endless loop of the same operations. Ordering processes like vending machines come to mind. These are now trivial to create (and enhance) thanks to our sequential composition.
+Let's take a disease testing facility as an example. We're going to model the following steps:
+1. Enter personal information of patient
+2. Select test type and start test
+3. Enter test result
+4. Print, showcase or send result to patient
+Our sequential composition for this process can be seen in listing 27. Noteworthy would be the option to pass the collected information further along, which could be used to collect statistics (e.g for positive cases etc.).
+#+CAPTION: Example of system for testing of disease
+#+begin_src clojure
+  (defn test-patient-for-disease []
+    (m/runner [personal-info aquire-personal-info
+	       test-info enter-test-info
+	       result enter-test-result
+	       _ (showcase [personal-info test-info result])
+	       _ (test-patient-for-disease)]))
+#+end_src
 * TODO Possible improvements
 - Early termination; Seeing how the use-case is all about making it possible to compose steps together, asking if it even should be possible to premeaturely exit the chain of operation, from within a ~Prog~, is valid, however it's important to keep in mind that a ~Prog~ could be used from different parts of the application and the developer would have no idea if that ~Prog~ has the possibility to terminate itself (and therefore the chain) early, without looking at the code.
 - Different types of commit
+- map actions to commit (from outside)
+- helper functions like ~def-prog~
 - force prog to commit
 - lenses for seq comp?
 * TODO Conclusion
