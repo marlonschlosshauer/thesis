@@ -432,13 +432,13 @@ Discussed earlier, the ~then~ function needs to compose steps together. The basi
 #+end_src
 
 However, just passing a ~Prog~ everytime would be of little use. A ~Prog~ just contains a single step. Things get interesting if we want to pass a ~Bind~, because we cannot just wrap the ~Bind~ again, as it already contains a ~Prog~.
-If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use CSP transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind. A visual explanation can be seen in Figure #15.
+If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use Continuation-Passing Style (CPS) transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind. A visual explanation can be seen in Figure #14.
 #+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
 #+ATTR_LATEX: :width 200px
-[[./images/csp-transformation.png]]
+[[./images/cps-transformation.png]]
 This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) trivial. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
 
-Now, inside of our ~then~ function we need to handle both cases. For this we differenciate between a ~then~ call where a ~Prog~ is passed and where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CSP-transformation. See Listing #15 for the code.
+Now, inside of our ~then~ function we need to handle both cases. For this we differenciate between a ~then~ call where a ~Prog~ is passed and where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CPS-transformation. See Listing #15 for the code.
 #+CAPTION: Definition of the ~then~ function using csp-transformation
 #+begin_src clojure
   (defn then [prog cont]
