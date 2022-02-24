@@ -633,7 +633,24 @@ Because our ~then~ takes a ~continuation~ for its next step, it's trivial to cre
 	       _ (infinite-loop (inc a))]))
 #+end_src
 It could be possible that there are even conciser methods possible, however this implementation is small enough for now. Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~_~ to ignore its result, like they would also do with a function parameter.
-** TODO Deeply composing
+** Re-using compositions
+Using just the ~then~ macro (without the ~runner~), we can save a sequential composition, to use it again in multiple places. Because ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See listing 27 for an example of an order process, in which the selection of the product is defined outside of the ~runner~. Note that we loose the ability to easily access the results of the previous sequential composition, which happened in the first ~then~. Therefor we have to use the end-expr of our then, to gain access to these values again in the following composition.
+#+CAPTION: Using just ~then~ and ~def~ to define a shareable sequential composition
+#+begin_src clojure
+  (def burger-selection
+    (m/then [size size-selection
+	     condiments condiments-selection
+	     extras? extra-selection]
+	    (fn [] {:size size :condiments condiments :extras? extras?})))
+
+  (def order-process
+    (m/runner [credentials login-user
+	       order burger-selection
+	       payment payment-options
+	       _ (confirm-order [credentials order payment])]))
+#+end_src
+** Mixing primitives and macros
+Because our macros don't add additional logic, we can mix primitives and macros. In listing 28 we use our primitive ~then~ inside of our macro ~runner~. Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
 #+CAPTION: Showcasing composition by using the primitive ~then~ to first compose a complex structure, before inserting it into our macro ~runner~.
 #+begin_src clojure
   (def mix-primitives-macros
@@ -642,10 +659,7 @@ It could be possible that there are even conciser methods possible, however this
 			 (fn [] (b/then (item (+ a 2))
 					(fn [x] (item (inc x))))))
 	       c (item (+ a b))]
-	      (fn []
-		(let [res (+ c 1)]
-		  (println res)
-		  res))))
+	      (fn [] (+ c 1))))
 #+end_src
 ** Repeatable workflow
 In the previous example we saw the benefit of using recursion in our ~runner~. Let's push this further by going beyond a single step. Some software systems are nothing but an endless loop of the same operations. Ordering processes like vending machines come to mind. These are now trivial to create (and enhance) thanks to our sequential composition.
