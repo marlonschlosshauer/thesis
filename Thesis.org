@@ -43,7 +43,7 @@ Our applications already are a collection of parallel compositions. If we add th
 Not only would our code be more expressive and more concise, bugs could also be reduced because the systems we build can be represented more truthfully by the provided api of the framework. But most importantly we could build workflows out of smaller flows or other workflows entirely and share these across our applications, just how do with ui elements.
 Given the lack of support and possible application it is of high interest to find a way to compose sequentially, easier.
 * What is React
-React is a popular UI framework developed by Meta (formerly Facebook) and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
+React[R1] is a popular UI framework developed by Meta (formerly Facebook) and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
 #+CAPTION: Example of JSX to define a profile
 #+begin_src javascript
   const profile = ({name, age, image}) => {
@@ -66,7 +66,7 @@ which are effected by a state change are freshly render. Old components remain u
 
 React is also a popular basis for other frameworks like Preact, Reagent, reacl-c and others.
 * What is reacl-c
-Reacl-c is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage of Clojures immutable datastructures. Like React, reacl-c allows the defining of components, called "items" in reacl-c. These items can have child items, thus forming a tree, just like in React.
+Reacl-c [R2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage of Clojures immutable datastructures. Like React, reacl-c allows the defining of components, called "items" in reacl-c. These items can have child items, thus forming a tree, just like in React.
 
 To make composing of items easier, reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outter state, which is implicitely passed down from the parent to the child. The later puts the emphasis on the parent.
 
@@ -149,7 +149,7 @@ To change state the ~core/return~ function is used again. This time with the ~:s
 * What is a monad
 There are different kinds of Monads that serve different purposes. In general, monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. One use case for some monads is to allow us to chain operations on often abstracted away types to transform data or control flows. In order to allow for sequential composition we need to make use of both, with a focus on controlling when what is executed and shown.
 ** The Maybe Monad
-A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do.
+A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[GH1].
 #+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= operator, the chain will stop if one of the calls return a ~Nothing~
 #+begin_src haskell
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
@@ -158,7 +158,7 @@ A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a 
 Monads are everywhere around us and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share, because the actual logic is hidden away, yet allow us to continue to easily use them, because they're composable.
 Common cases for monads are IO operations, handling of errors, UI work and to establish a context of values.
 ** Whats required to be a monad
-To be a monad a type needs to implement two functions and comply with three rules. The required functions are ~>>=~ (also called bind) and ~return~.
+To be a monad a type needs to provide two functions and satisfy three rules[HW1]. The required functions are ~>>=~ (also called bind) and ~return~.
 A bind takes an instance of a monad ~M~ and takes a function that gets a normal value and returns another instance of that type ~M~. The bind function return the result of the second argument, the passed function. We give it a monad and a function and get another monad out. This is what enables us to chain these operations together.
 The second function, the ~return~, takes a value and makes a monad out of it. This usually means wrapping the value in a monad type. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ value (with the value of 1 inside of it). Return is sometimes also referred to as ~pure~.
 
@@ -169,7 +169,7 @@ It's often helpful to see these functions in the Haskell notation, to understand
   return a = M a
 #+end_src
 
-Our implementation of these functions need to fullfill the following three rules to be considered a monad:
+Our implementation of these functions need to fullfill the following three rules to be considered a monad[WH1]:
 - Left identity: ~return a >>= h = h a~
 - Right identity: ~m >>= return = m~
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
@@ -291,7 +291,7 @@ Lastly, besides the parameter, there is no way to distinguise from the outside i
 Current methods either don't offer composibility or they require a lot of boilerplate to be composible. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort. Support from modern frameworks could fill this gap and enable this kind of composition while also delivering smooth integration with other features of the framework.
 * Desired Behaviour
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Unlike with parallel composition, there are little examples to go off of. Because of this it's easy to draw inspiration from other, already in use functions.
-ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
+ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ [CD3] is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
 #+CAPTION: Using ~let~ to bind values to the names ~one~, ~two~, ~three~
 #+begin_src clojure
   (let [one 1
@@ -411,11 +411,24 @@ Using monads makes sense because they allow us to abstract the actual logic (e.g
 The required functions also are a fit for our API. With the ~>>=~ Operation we give the developer an easy way to further compose their sequential components. ~return~ gives us a new type, which we can use to distinguish our sequential and parallel compositions from each other.
 Because we wait for a ~Commit~ to be emitted, we need to take asychronisity into account. Thus we need the previously described tools to build up a blueprint and a specially labeled environment in which that blueprint is being executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 ** Tail Call Optimisation
-Neither Java nor JavaScript, the two host languages for Clojure and ClojureScript respectively, feature Tail Call Optimization (TCO). Due to the high amount of nested function calls it is however a very important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of a monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Lastly, with composition it would undesirable to have to worry about depth of composition.
-It is therefore important to abstract away the bind logic from the developer, to implement some kind of TCO around it.
+Neither Java [SWH] nor versions of JavaScript that we use in our browsers [2AY], feature Tail Call Optimization (TCO). Both langauges are used as host languages, Java for Clojure and JavaScript for ClojureScript. Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of our monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows. Burdening the developer to wory about depth of composition would be undesirable, as the goals is to create an easy to use API.
 *** TCO in ClojureScript
-While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop.
-Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now in a loop, the resulting function will be called and each invocation will return another function. This is done until a certain condition is passed and the loop ends. The idea is to pull our function call up, instead of going deeper.
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop [LC1]. This allows for worry free function invocations.
+Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved.
+
+Now for as long as the function returns another function, we will call it. If a value is returned, we will stop and return it. Listing 14 shows a crude example. See [SWH] for a more detailed explanation.
+#+CAPTION: Example of trampolines in JS. ~optmizied~ calls ~work~ initially and loops for as long as it returns a ~function~.
+#+begin_src javascript
+  function work(y) {
+      return (y === 0) ? true : () => work(y-1);
+  }
+
+  function optimized(x) {
+      let r = work(x);
+      while (typeof r === 'function') r = r();
+      return r;
+  }
+#+end_src
 *** Custom TCO
 While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be to be developed. We will revisit the concept of the trampoline again during the implementation.
 * Implementation
@@ -689,10 +702,19 @@ Having used our API to build the earlier mentioned examples, it is clear to us t
 While the API could be enhanced, the added complexity of some proposels could also take away from the current present simplicity. It's best to first see how the current implementation solves the problem presented by workflows, before making big additions.
 We're pleased with the implementation and are excited to find out what we can build with it.
 * Sources
+- [R1] https://reactjs.org/
+- [R2] https://github.com/active-group/reacl-c/
 - [CD1] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
 - [CD2] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
+- [CD3] https://clojuredocs.org/clojure.core/let
+- [HW1] https://wiki.haskell.org/Monad_laws
 - [QCEFP1] Quick Clojure: Effective Functional Programming - 10. Macros
 - [RC1] https://github.com/active-group/reacl-c/blob/0.10.10/src/reacl_c/core.cljc#L94
 - [KH1] https://github.com/khinsen/monads-in-clojure
+- [LC1] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
+- [SWH] Tail Call Optimization in the Java HotSpotTM VM
+- [2AY] https://2ality.com/2015/06/tail-call-optimization.html
+- [GH1] https://www.youtube.com/watch?v=YDj20ySKWP8
+- [HW1] https://wiki.haskell.org/Monad_laws
 
 
