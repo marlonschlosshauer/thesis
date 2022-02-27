@@ -11,8 +11,8 @@
 #+LATEX: \newpage
 
 * Abstract
-The composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel- and sequential-composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support for it (or lack thereof) and explore a developer friendly interface for sequential composition.
-Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed interface for it. At the end we give examples of sequential composition using our implementation and discuss possible improvements to the implementation.
+The composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel and sequential composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support (or lack thereof) for it and explore a developer friendly API for sequential composition.
+Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed API in it. At the end we give examples of sequential composition using our implementation and discuss possible improvements.
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as a component, to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel, as we can group elements into something that is to work together with each other. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
