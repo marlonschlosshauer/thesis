@@ -14,34 +14,32 @@
 The composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel and sequential composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support (or lack thereof) for it and explore a developer friendly API for sequential composition.
 Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed API in it. At the end we give examples of sequential composition using our implementation and discuss possible improvements.
 * Motivation
-Components are an important tool in modern frontend development. In traditional frameworks we can define something as a component, to reuse it multiple times in our applications, encapsulate some style with some functionability or collect multiple elements into a single component. To be more precise, we can compose things in parallel, as we can group elements into something that is to work together with each other. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
+Components are an important tool in modern frontend development. In traditional frameworks we can define something as a component to reuse it multiple times in our applications, encapsulate some style with some functionality or collect multiple elements into a single component. To be more precise, we can compose things in parallel because we can group elements into something that is to work together. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
-#+CAPTION: Example of parallel composition of a sign-in component. The first composition is a button and two inputs. The result of the first composition is further composed by adding a headline. That result is then further composed by adding a logo.
+#+CAPTION: Example of parallel composition of a sign-in component. The first composition is the result of adding a button and two inputs. We further compose the first composition by adding a headline. That result is then again further composed by adding a logo.
 #+ATTR_LATEX: :width 350px
 [[./images/parallel-composition-highlighted.png]]
 
-However, modern frontend applications have gone beyond just serving information with HTML. They act as a digitalization of a workflow, where the order of components, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. This is to say, we say which steps we have and together they form a sequence.
-The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step, rather the result of each step is fed into the next step. This allows us to adress the essential sequentiality of the domain while not creating accidental sequentiality, because sequentiality isn't our only tool. *TODO*
-An example of a sequential composition would be to first show a sign-in component, then after a successful login show the actual component the user wanted to access.
-An example of a sequential composition would be to first ask the user for their e-mail address, then after having the user enter a valid e-mail, showing the user an input field for a code that was sent to them, using their e-mail. Notice that the second step depends on information that was gathered by the previous step.
+However, modern frontend applications have gone beyond just serving information with HTML. Websites often act as a digitalization of a workflow, where the order of components, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. That is to say, we say which steps we have and in what order they appear. Together they form a sequence.
+The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step. Rather the result of each step is fed into the next. This allows us to address the essential sequentiality of the domain while not creating accidental sequentiality, as we still have access to the tools provided by functional programming.
+An example of a sequential composition would be to first ask the user for their email address, then, after having the user enter a valid email, show another input field, where the the user can enter a code that was sent to them, using their email. Notice that the second step can depend on information that was gathered by the previous step.
 
-#+CAPTION: Example of sequential composition of a sign-up component. The first composition combines two steps and is further composed by adding a third step.
+#+CAPTION: Example of sequential composition of a sign-up component. The first composition combines two steps, before being again further composed by adding a third step.
 #+ATTR_LATEX: :width 350px
 [[./images/sequential-composition-highlighted.png]]
 
-Because of this dependency composing sequentially isn't just an optimization, it's a fundamental building block of how an application is supposed to operate. Just how we need the ability to show both an input field and a button at the same time (to confirm the input), we also need the ability to model what happens after (and possibly before) that button has been pressed.
+Because of this dependency, composing sequentially isn't just an optimization. It is a fundamental building block of how an application is supposed to operate. Just like how we need the ability to show both an input field and a button at the same time (to confirm the input), we also need the ability to model what happens after (and possibly before) that button has been pressed.
 
-But despite the need, the actual support for sequential composibility by modern frameworks is either non existent or very poor.
-While some of the desired result can be achieved by making clever use of parallel composibility or using traditional links and routing, neither is truly sequentially composible and both suffer from multiple issues, some of which are:
-- They don't yield things which we can compose further (into more complicated workflows)
+But despite that need, the actual support for sequential composability by modern frameworks is either non existent or very poor.
+While some of the desired result can be achieved by making clever use of parallel composability or using traditional links, most aren't truly sequentially composible and both suffer from multiple issues, some of which are:
+- They don't yield things which we can compose further (into more sophisticated workflows)
 - Reusing these components leads to a lot more abstraction
 - It produces code that becomes difficult to understand at a glance (or at all)
-- Most importantly the logic for advancing the steps and the book-keeping lives now inside the component with the parallel composing logic
-There are more issues like the inability to easily test just the order of the components and the huge time cost required to refactor constructs of this nature.
+- Most importantly: the logic for advancing the steps and the book-keeping lives now inside the component, with the parallel composing logic
+There are more issues. The inability to easily test just the order of the components and the huge time cost required to refactor constructs of this nature are just the starting point.
 
-Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we can use another axis to control our programs and build complicated hierchies, where an application consistst of one sequentially composed component, that inside of it has either more sequentially or parallel composed components.
-Not only would our code be more expressive and more concise, bugs could also be reduced because the systems we build can be represented more truthfully by the provided api of the framework. But most importantly we could build workflows out of smaller flows or other workflows entirely and share these across our applications, just how do with ui elements.
-Given the lack of support and possible application it is of high interest to find a way to compose sequentially, easier.
+Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we gain another tool to control our programs. Not only would our code be more expressive and more concise, bugs could also be reduced because the resulting systems represent more truthfully what they set out to do, thanks to the provided API of the framework. Most importantly, we could build workflows out of smaller flows or other workflows entirely and share these across our applications, just how do with our UI elements.
+Given the lack of support and the possible applications it is of high interest to find a way to compose sequentially, easier.
 * What is React
 React[R1] is a popular UI framework developed by Meta (formerly Facebook) and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
 #+CAPTION: Example of JSX to define a profile
