@@ -311,7 +311,7 @@ ClojureScript provides something that allows us to define things in a neat way w
     (+ one two three))
 #+end_src
 
-Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 14 shows how our earlier sign-up example could look like if we used a ~let~ like style. Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared ~keys~) at the end.
+Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the from of ~ref-let~[7]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 14 shows how our earlier sign-up example could look like if we used a ~let~ like style. Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared ~keys~) at the end.
 #+CAPTION: Earlier sign-up example written in a ~let~ style
 #+begin_src clojure
   (runner [personal (personal-info)
@@ -378,7 +378,7 @@ The developer needs to create the anonymous functions by hand, everytime. Thankf
 Because this is functionaly identical, we can write a macro to translate the code example above into the desired ~let~ like structure.
 *** What are macros?
 Macros are a powerful feature which lets us rewrite our ClojureScript code before it's being evaluated. We do this by selectively telling the language what to evaluate and what to keep for later evaluation. That allows us to use all of ClojureScripts functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a Clojure data structure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated. Because of this we can use the entire language to transform our code, like we transform data, into something more usable.
-Macros can be found all over Clojure and ClojureScript. Functions like ~when~[7] and ~when-not~[8] are actually macros that rewrite themselves to a simple ~if~. Even the much discussed ~let~ function is a macro[9].
+Macros can be found all over Clojure and ClojureScript. Functions like ~when~[8] and ~when-not~[9] are actually macros that rewrite themselves to a simple ~if~. Even the much discussed ~let~ function is a macro[10].
 *** Syntax
 The ability to delay evaluation of just some parts of our code is powerful. ClojureScript gives a couple of new symbols to decide how it should evaluate code. We can use these symbols inside of a ~defmacro~ function, which works similar to ~defn~ and ~def~ with which we define functions and values with.
 The following table lists the symbols:
@@ -386,7 +386,7 @@ The following table lists the symbols:
 | '      | Quoting        | Stop execution                    |
 | `      | Syntax quoting | Like ' but qualify with namespace |
 | ~      | Unquoting      | Start execution                   |
-If we quote something with ~\'~ or ~\`~ it will not be evaluated yet[10]. The difference between the two is that ~\`~ qualifies each expression with their full namespace. The ~\~~ symbol turns on evaluation inside of a ~\`~ again[10].
+If we quote something with ~\'~ or ~\`~ it will not be evaluated yet[11]. The difference between the two is that ~\`~ qualifies each expression with their full namespace. The ~\~~ symbol turns on evaluation inside of a ~\`~ again[11].
 *** What are the uses cases for macros?
 Macros provide so much freedom that they enable us to enhance not just our API but also the language itself. If the problem is beyond manipulating data, but rather about manipulating the functions, macros are a good fit.
 They allow a developer to provide their API exactly how they imagine it. That's why we will make use of them in our implementation.
@@ -420,12 +420,12 @@ Using monads makes sense because they allow us to abstract the actual logic (e.g
 The required functions also are a great fit for our API. With the ~>>=~ operation we give the developer an easy way to further compose their sequential components. ~return~ requires us to make a new type, which we can in turn use to distinguish our sequential and parallel compositions from each other.
 Because we wait for a ~Commit~ to be emitted, we need to take asynchronicity into account. Thus we need the previously described tools to build up a blueprint and a specially labeled environment in which that blueprint is being executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 ** Tail Call Optimisation
-Neither Java[11] nor versions of JavaScript that we use in our browsers[12], feature Tail Call Optimization (TCO). Both langauges are used as host languages, Java for Clojure and JavaScript for ClojureScript. Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guaranteed that successive invocations of nested function calls (like our monadic bind) won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows. Burdening the developer to worry about depth of composition would be undesirable, as the goal is to create an easy to use API.
+Neither Java[12] nor versions of JavaScript that we use in our browsers[13], feature Tail Call Optimization (TCO). Both langauges are used as host languages, Java for Clojure and JavaScript for ClojureScript. Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guaranteed that successive invocations of nested function calls (like our monadic bind) won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows. Burdening the developer to worry about depth of composition would be undesirable, as the goal is to create an easy to use API.
 It is therefore important to add further abstraction to the bind logic, to allow us to implement some kind of TCO around it.
 *** TCO in ClojureScript
-While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop[13]. This allows for worry free function invocations, no matter the depth.
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop[14]. This allows for worry free function invocations, no matter the depth.
 
-Another way to gain TCO is to use what is called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned, we will stop and return that instead, breaking our ~loop~. Listing 18 shows a crude example. See [11] for a more detailed explanation.
+Another way to gain TCO is to use what is called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned, we will stop and return that instead, breaking our ~loop~. Listing 18 shows a crude example. See [12] for a more detailed explanation.
 #+CAPTION: Example of trampolines in JS. ~optimized~ calls ~work~ initially and loops for as long as it returns a ~function~.
 #+begin_src javascript
   function work(y) {
@@ -574,7 +574,7 @@ The goal of our macro is to rewrite the passing of multiple ~Progs~ into a serie
 	   y prog2
 	   _ prog3])
 #+end_src
-Listing 26 hints at what needs to be done. The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[14].
+Listing 26 hints at what needs to be done. The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[15].
 
 #+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the anonymous functions.
 #+begin_src clojure -n 1
@@ -711,14 +711,14 @@ We're pleased with the implementation and are excited to find out what can build
 - [4] https://wiki.haskell.org/Monad
 - [5] https://wiki.haskell.org/Monad_laws
 - [6] https://clojuredocs.org/clojure.core/let
-- [7] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
-- [8] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L499
-- [9] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
-- [10] Quick Clojure: Effective Functional Programming - 10. Macros
-- [11] Tail Call Optimization in the Java HotSpotTM VM
-- [12] https://2ality.com/2015/06/tail-call-optimization.html
-- [13] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
-- [14] https://github.com/khinsen/monads-in-clojure
-- [RC1] https://github.com/active-group/reacl-c/blob/0.10.10/src/reacl_c/core.cljc#L94
+- [7] https://github.com/active-group/reacl-c/blob/0.10.10/src/reacl_c/core.cljc#L94
+- [8] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
+- [9] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L499
+- [10] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
+- [11] Quick Clojure: Effective Functional Programming - 10. Macros
+- [12] Tail Call Optimization in the Java HotSpotTM VM
+- [13] https://2ality.com/2015/06/tail-call-optimization.html
+- [14] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
+- [15] https://github.com/khinsen/monads-in-clojure
 
 
