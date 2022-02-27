@@ -63,17 +63,18 @@ Another important feature of React is that the developer must explicitly declare
 
 React is also a popular basis for other frameworks like Preact. It is especially popular for ClojureScript based frameworks. Noteable examples are reacl-c, om, reagent, rum and others.
 * What is reacl-c
-Reacl-c [R2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage of Clojures immutable datastructures. Like React, reacl-c allows the defining of components, called "items" in reacl-c. These items can have child items, thus forming a tree, just like in React.
+Reacl-c [2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks, reacl-c wraps React to best take advantage of Clojure's immutable data structures. Like React, reacl-c allows the definition of components, called ~items~. These ~items~ can have child ~items~, thus forming a tree, just like components do in React.
 
-To make composing of items easier, reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outter state, which is implicitely passed down from the parent to the child. The later puts the emphasis on the parent.
+To make composing of ~items~ easier reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outter state, which is implicitly passed down from the parent to the child. The later has the unique feature of putting the emphasis on the parent, in their relationship. We will explore why this is important soon.
 
-A key difference to React, is that items can emit actions if an event occurs. These actions propogate upward the item tree. Every item can register an action handler which captures the action and reacts to it. This enables the developer to define a (child) item completely independently from their potential future parents, leading to more reusable and more composible components.
+Another key difference to React, is that ~items~ can emit actions if an event occurs inside of them. These actions propogate upward the item tree. Every item can register an action handler, which captures the action and reacts to it. This enables the developer to define a (child) ~item~ completely independently from their potential future parents, leading to more reusable and more composable components.
 Instead of having the parent pass down a function to, e.g manipulate state, the component can emit an action upwards and trigger the same functionability in the parent. Another benefit is that the parent component can adapt the output of the emitted action further.
 
-#+CAPTION: Showcasing the inversion of control by comparing emiting of actions to passing down callbacks. Each circle is a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
+#+CAPTION: Showcasing the inversion of control by comparing emitting of actions to passing down callbacks. Each circle represents a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
+#+ATTR_LATEX: :width 350px
 [[./images/emit-vs-callback.png]]
 
-As an example: A button toggles an "option" from ~true~ to ~false~ and back. The state for this "option" is put into the parent, as the child will be reused across the application. In React, the button needs to receive a function which to callback, after the button had been pressed. In reacl-c the button does not need to receive anything from the outside world (necessarily, styling and text might be applied), as the button emits an action when pressed, which the parent can capture and act upon.
+As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon.
 #+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 #+begin_src clojure
   (defn-item abstract-button [text]
@@ -81,26 +82,26 @@ As an example: A button toggles an "option" from ~true~ to ~false~ and back. The
 #+end_src
 With this style of communication, only the parent needs to know the child. The developer does not need to tell the child where to send the action. Reacl-c takes care of that work for us.
 
-To make components even more composible the parent can not just control the result, it can also control which state is given to it's children in the first place. The parent can therefor handle the child items like they're pure functions, that together with the parent compose to a new item.
+To make components even more composable the parent can not just control the result, it can also control which state is given to its children in the first place. The parent can therefor handle the child items like they're pure functions, that together with the parent compose to a new item.
 
-In React often another package like Redux is used to fix the problem of having to passdown functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composibility of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+In React often another package like Redux is used to fix the problem of having to pass-down functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composability of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state, first. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables us to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
 ** How an Item is made
-Reacl-c is made up of so called items and functions which operate on these items. Much like in React they are instructions that represent HTML elements that can be nested and can hold state.
-To make an item reacl-c provides a namespace called ~dom~ that contains all the necessary DOM HTML components already defined as items. All that is needed to create a headline is ~(dom/h2 "Headline")~. To make more complicated items, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple items.
-#+CAPTION: Showcasing composition of multiple items into one by using a div
+Reacl-c is made up of so-called ~items~ and functions which operate on these ~items~. Much like in React, these ~items~ are instructions that represent HTML elements that can be nested and can hold state.
+To make an ~item~ reacl-c provides a namespace called ~dom~ that contains all the necessary DOM HTML components already defined as ~items~. As an example, all that is needed to create a headline is ~(dom/h2 "Headline")~. To make more complicated ~items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple items. See listing 3 for an example.
+#+CAPTION: Showcasing composition of multiple ~items~ into one by using a ~div~.
 #+begin_src clojure
   (dom/div
    (dom/h2 "Hello")
    (dom/p {:class "subtitle"} "This is some text")
    (dom/button "Subscribe"))
 #+end_src
-There are other functions which, much like div, don't add something visually but change the behaviour of the item. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few.
+There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each later.
 
-Items can also receive a map as their first argument. With this map things like CSS classes, inline-style can be provided. If the item is an interactive one like Buttons and inputs (to name a few), the keywords ~onChange~ and ~onChange~ can be used to register a callback.
+~Items~ can also receive a ClojureScript map as their first argument. With this map things like CSS classes and inline-style can be applied. If the ~item~ is interactive, like Buttons and inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback.
 ** Emitting and handling actions
-Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this is a crucial feature to make items composible.
-To emit an action the child needs to call ~core/return~ with the ~:action~ keyword and the desired payload. The action will travel upwards until it's caugh by a ~core/handle-action~. Handle action takes two arguments, first an item to wrap (and receive actions from) and second a function that defines what do to when it received an action.
-#+CAPTION: The action emitted by the buzzer item is caught in the parent item
+Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this is a crucial feature to make items composable.
+To emit an action the child needs to call ~core/return~ with the ~:action~ keyword and the desired payload. The action will travel upwards until it is caught by a ~core/handle-action~. The action handler function takes two arguments. First an ~item~ to wrap and receive actions from. Second, a function that defines what do to when it receives an action.
+#+CAPTION: The action emitted by the buzzer ~item~ is caught in the parent ~item~ using ~core/handle-action~.
 #+begin_src clojure
   (def buzzer
     (dom/dom
@@ -110,41 +111,42 @@ To emit an action the child needs to call ~core/return~ with the ~:action~ keywo
   (def parent
     (core/local-state
      {:pressed? false}
-     (c/handle-action
+     (core/handle-action
       (core/dynamic
        (fn [[outter inner]]
 	 (dom/div
 	  (dom/p (str "The button has" (if (:pressed? inner) "been pressed" "not been pressed")))
 	  buzzer)))
       (fn [ac msg]
-	(c/return :state {:pressed? msg})))))
+	(core/return :state {:pressed? msg})))))
 #+end_src
-It is important that the function which given to ~core/handle-action~ calls ~core/return~ at the end to either notify a parent of itself or change state, as an action is just a side-effect.
+It is important that the function which is given to ~core/handle-action~ calls ~core/return~ at the end to either notify a parent or itself of the state change, as an action is a side-effect.
 ** How state is managed
-Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle the problem. Thankfully, much like with React, the developer can easily make out if a component is using or changing state.
+Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle this problem. Much like with React, developers can easily make out if a component is using or changing state, which makes working with state easier.
 
 State in reacl-c can be shared in different, more complex, ways.
-Firstly, while a component might have state, it is not accessable to the developer until they use the ~core/dynamic~ function. This has the benefit of instantly marking a component as one that needs and works with state.
-Secondly, state is split into two categories:
-- Inner state, which is defined inside of the component by using either ~with-state-as~, ~local-state~ or ~isolate-state~.
+Firstly, while a component might have state, it is not accessible to the developer until they use the ~core/dynamic~ function or ~core/with-local-state-as~ macro. This has the benefit of instantly marking a component as one that needs and works with state.
+Secondly, like mentioned earlier, state is split into two categories:
+- Inner state, which is defined inside of the component by using either ~core/with-state-as~, ~core/local-state~ or ~core/isolate-state~.
 - Outter state, or state that is passed down from the parent component.
-The inheritance of state from the parent happens implicitely, but can be controlled by the parent through lenses (with the ~core/focus~ function). Like mentioned earlier, this part of the reason why reacl-c items are so composible.
+The inheritance of state from the parent happens implicitly, but can be controlled by the parent through lenses (with the ~core/focus~ function). These tools are a reason why reacl-c ~items~ are so composable.
 
-While ~with-state-as~ allows us to add additional state to our component, the ~dynamic~ function gives us access to all the state that this component has to offer. These two functions are often used together, to create a component that needs to both have local state and react to it.
-#+CAPTION: Using ~local-state~ to create an inner state of an empty string, which is being changed by the ~onChange~ callback of the input.
+While ~core/local-state~ and ~core/isolate-state~ allows us to add additional state to our component, the ~core/dynamic~ function is what gives us access to the state of the component. A combination of either one of the previous two with the ~core/dynamic~ function are often used together. The result has both added state and received access to it. See listing 5 for an example.
+#+CAPTION: Using ~core/local-state~ to create an empty string as inner state, which is being changed by the ~onChange~ callback of the input field.
 #+begin_src clojure
-  (c/defn-item name-input [placeholder]
-    (c/local-state
+  (core/defn-item name-input [placeholder]
+    (core/local-state
      ""
-     (c/dynamic
+     (core/dynamic
       (dom/input
        {:placeholder placeholder
 	:value inner
-	:onChange (fn [[outter inner] e] (c/return :state [outter (.. e -target -value)]))}))))
+	:onChange (fn [[outter inner] e] (core/return :state [outter (.. e -target -value)]))}))))
 #+end_src
-To change state the ~core/return~ function is used again. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
+To change state the ~core/return~ function is used. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
 * What is a monad
-There are different kinds of Monads that serve different purposes. In general, monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. One use case for some monads is to allow us to chain operations on often abstracted away types to transform data or control flows. In order to allow for sequential composition we need to make use of both, with a focus on controlling when what is executed and shown.
+There are different kinds of Monads that serve different purposes. In general, monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. This is helpful, because we can abstract away difficult or complex logic, so that the developer can continue working, as if the types they use are primitives.
+One use case for some monads is to allow us to chain operations on often abstracted away types, to transform data or control the flow of the proram. In order to allow for sequential composition we need to make use of both, with a focus on controlling when and what is executed and shown.
 ** The Maybe Monad
 A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[GH1].
 #+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= operator, the chain will stop if one of the calls return a ~Nothing~
@@ -152,15 +154,15 @@ A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a 
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
 #+end_src
 
-Monads are everywhere around us and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share, because the actual logic is hidden away, yet allow us to continue to easily use them, because they're composable.
+Monads are everywhere and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share, because the actual logic is hidden away, yet allow us to continue to easily use them, because they're composable.
 Common cases for monads are IO operations, handling of errors, UI work and to establish a context of values.
 ** Whats required to be a monad
 To be a monad a type needs to provide two functions and satisfy three rules[HW1]. The required functions are ~>>=~ (also called bind) and ~return~.
 A bind takes an instance of a monad ~M~ and takes a function that gets a normal value and returns another instance of that type ~M~. The bind function return the result of the second argument, the passed function. We give it a monad and a function and get another monad out. This is what enables us to chain these operations together.
 The second function, the ~return~, takes a value and makes a monad out of it. This usually means wrapping the value in a monad type. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ value (with the value of 1 inside of it). Return is sometimes also referred to as ~pure~.
 
-It's often helpful to see these functions in the Haskell notation, to understand them. See Listing for more.
-#+CAPTION: Haskell notation of the functions bind and return
+It's often helpful to see these functions in the Haskell notation, to understand them. See listing 7 for more.
+#+CAPTION: Haskell notation of the functions ~bind~ and ~return~
 #+begin_src haskell
   M a >>= (a -> M b) = M b
   return a = M a
@@ -175,7 +177,7 @@ Left and right identity are tests to make sure the types work out correctly. ~re
 * Current State
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React etc. However, this is limited to creating a new component that just displays all composed components at the same time. In other words it's only possible to compose in parallel. To create a component which initially display some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps.
 ** If statement
-While not offering composibility, a simple ~if~ statement is highly effective for binary choices when it comes to displaying components. An example would be to guard dashboards and such behind an ~if~ statement, to check if the user is logged in. If they aren't, the login page (instead of the dashboard) is shown.
+While not offering composability, a simple ~if~ statement is highly effective for binary choices when it comes to displaying components. An example would be to guard dashboards and such behind an ~if~ statement, to check if the user is logged in. If they aren't, the login page (instead of the dashboard) is shown.
 #+begin_src javascript
   const app = (isLoggedIn) => {
       return (isLoggedIn)
@@ -225,7 +227,7 @@ Listing #2 shows the example from Listing 1, but it's written in reacl-c and ins
 
 This causes multiple issues. The most immidiate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also very easy to lose track of which component will be shown next, if a complex order is choosen, as no support is being provided by either the language nor the framework. There is also no check if the pattern is non-exhaustive.
 Importantly, this also cannot be further composed! With the implementation in Listing 1 or Listing 2, it is not possible to wrap them with a similiar structure, as the inner component has currently no way to signal to the outter component, that the next step is to be displayed. We solved this problem inside of the inner component by passing a callback down, to call us once the next step should be displayed.
-We could preemptively add a callback to our ~login~ component, which would be called once the component is done, in case we'd ever need it in the future. This makes our component sequentially composible, however adds even more code to our component. It also requires that we keep track of our steps at yet another place, the point which determinds if the component is done (and the final callback should be called). See Listing 3 for more.
+We could preemptively add a callback to our ~login~ component, which would be called once the component is done, in case we'd ever need it in the future. This makes our component sequentially composable, however adds even more code to our component. It also requires that we keep track of our steps at yet another place, the point which determinds if the component is done (and the final callback should be called). See Listing 3 for more.
 #+begin_src javascript
   const login = (onFinish) => {
       const stepCount = 3;
@@ -253,8 +255,8 @@ While meeting all functional requirements, the implementation provides poor usea
 ** Callbacks
 We have already explored one possbile solution to sequential composition, using a switch statement. However we had to fall back to using callbacks to implement our logic. It is also possible to skip the switch statement and just use callbacks. This has the benefit of relieving us of a lot of code and making it easier at a glance to understand what is happening.
 
-One idea for a component that is sequentially composible is shown in Listing #5, while usage is shown in Listing #6.
-#+CAPTION: Definition of a composible component using callbacks. The ~cb~ callback function will be called once if the user clicks the button. The result of the callback is saved as state and will be shown, instead of the the now old component.
+One idea for a component that is sequentially composable is shown in Listing #5, while usage is shown in Listing #6.
+#+CAPTION: Definition of a composable component using callbacks. The ~cb~ callback function will be called once if the user clicks the button. The result of the callback is saved as state and will be shown, instead of the the now old component.
 #+begin_src javascript
   const personalInformation = (cb) => { // callback received as parameter
       const [result, setResult] = useState();
@@ -281,11 +283,11 @@ At the core it's not much different than the switch-case. We pass down a callbac
       return <personalInformation cb={cb}>
   }
 #+end_src
-Thanks to the flexibility of callbacks, we can now fully compose sequentially. However, this implementation has a couple of shortcomings. Firstly, we need to keep track of a lot of callbacks. This leads to code that is unpleasent to read (e.g composing mutliple steps in Listing #6). Secondly, we still need to write a lot of code every time we want a sequentially composible component. There is potential to abstract some of it away, but that needs a lot more abstraction to be viable. Writing a lot of code isn't necessarly bad, but could introduce typos and bugs of that nature. It also means we have more code that we might want to test.
+Thanks to the flexibility of callbacks, we can now fully compose sequentially. However, this implementation has a couple of shortcomings. Firstly, we need to keep track of a lot of callbacks. This leads to code that is unpleasent to read (e.g composing mutliple steps in Listing #6). Secondly, we still need to write a lot of code every time we want a sequentially composable component. There is potential to abstract some of it away, but that needs a lot more abstraction to be viable. Writing a lot of code isn't necessarly bad, but could introduce typos and bugs of that nature. It also means we have more code that we might want to test.
 Most importantly, we mix our parallel and sequential composition. We want the logic to be seperated, because they do different things. Yet every parallel component now needs to do book keeping as well.
 Lastly, besides the parameter, there is no way to distinguise from the outside if this is a sequential or parallel component. Placing a single step of a sequential composition into a parallel composition might not make sense and we'd like to make this not possible on an API level.
 ** Conclusion
-Current methods either don't offer composibility or they require a lot of boilerplate to be composible. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort. Support from modern frameworks could fill this gap and enable this kind of composition while also delivering smooth integration with other features of the framework.
+Current methods either don't offer composability or they require a lot of boilerplate to be composable. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort. Support from modern frameworks could fill this gap and enable this kind of composition while also delivering smooth integration with other features of the framework.
 * Desired Behaviour
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Unlike with parallel composition, there are little examples to go off of. Because of this it's easy to draw inspiration from other, already in use functions.
 ClojureScript already provides something that allows us to define things in a neat way, with the ~let~ function. As seen in Listing 3, a ~let~ [CD3] is composed of two parameters. The first parameter is a list of ~mapping:value~ pairs, where a mapping is nothing but a name to be used within the ~let~ and a value is the actual value of that name. The second parameter, the body, is a function which can use the mappings given in the first parameter, to execute some operation.
@@ -300,7 +302,7 @@ Another benefit of adopting this style is that ClojureScript developers would al
 
 An important feature for our sequantial composition is the need for synchronosity. Only one value is to be shown to the user at a time and that is the current value in our list of ~mapping:value~ pairs. Execution of pairs further in the list is halted until they're reached. The same should hold true for HTTP requests which could be added to the list.
 Future pairs should also be able to access the value returned by the earlier pairs, just like how you can access ~one~ while calculating the value of ~two~ in our ~let~ example earlier.
-Individual values in the ~mapping:value~ pairs should also be able to be composible with other values, so one step in one flow, can be an entire different, nested, flow. For that we need a function to compose further.
+Individual values in the ~mapping:value~ pairs should also be able to be composable with other values, so one step in one flow, can be an entire different, nested, flow. For that we need a function to compose further.
 
 Listings 5 shows our earlier example implemented with the desired functionality given by the framework. Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared names) at the end.
 #+CAPTION: Earlier login example written in a ~let~ style
@@ -317,10 +319,10 @@ A possible alternative to this would be to omit the body function entirely and i
 	   info (show-account-info [personal verification])])
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular item when wanted. It should be able to be composed parallel with other items and actions should be able to be caught from it.
-Inside of the ~runner~ we will have steps, those steps should be composible thanks to another function. For now we can steal terminology from monads and call this function ~bind~ or ~then~.
+Inside of the ~runner~ we will have steps, those steps should be composable thanks to another function. For now we can steal terminology from monads and call this function ~bind~ or ~then~.
 These two functions should be the primitives of our implementation.
 * Why composition is important
-Composibility is hugely important for software developer. Not only can we compose functions with other functions, but it is also what allows us to build modern UI elements so effortlessly. It even got its own OOP software pattern in the form of "Favor Composition over Inheritance" pattern.
+Composability is hugely important for software developer. Not only can we compose functions with other functions, but it is also what allows us to build modern UI elements so effortlessly. It even got its own OOP software pattern in the form of "Favor Composition over Inheritance" pattern.
 
 The benefits are plentiful. Arguably the biggest advantage is that it allows us to construct bigger things out of multple smaller things. This in turn allows us to break a problem into multiple pieces. Being able to address one concern at a time, we can not only test each piece on their own but also share components easier. Another big benefit is that we can, if constructed correctly, add to our composition forever. Because code evolves over time, this is an appealing property to have.
 Both of these attributes are important for frontend development, as we both want to be able to re-use our components and continue to add to them without worry.
@@ -337,7 +339,7 @@ In short:
 - Prog: An Item that will Commit
 Internally, there is also a ~Bind~ type, which is the result of a ~then~ call. This holds both a ~Prog~ and a continuation, that will be called once a ~Commit~ has been captured.
 ** Functions exposed by the API
-To deliver on the promises of frictionless composibility without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps.
+To deliver on the promises of frictionless composability without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps.
 The primivate functions are ~return~, ~then~ and ~runner~.
 *** return
 The ~return~ function takes an ~Item~ and turns it into a ~Prog~. This allows to go from a parallel composition (with an ~Item~) to a sequential composition (of a ~Prog~). Once an ~Item~ is a ~Prog~ the result can't be further parallely composed.
@@ -404,11 +406,12 @@ Another use-cases is the conditional loading of data (from a server). Here the r
 Seeing how all three of our use-cases benefit from having the option to react to the result, the implementation that just display the last ~Prog~ indefinitely or shows nothing - is of little use. Using the actions of ~reacl-c~ is nice, but causes unwanted complication. Giving developers the option to handle the result or ignore it, by passing a continuation as a body, allows for all use-cases to work and causes minimal overhead for the developer. This also mirrors the functionability of ~let~.
 This however raises the question what should happen if no continuation is supplied. Should the last Prog be shown indefinitely? From a user experience perspective, it's expected that an action has a reaction, thus it makes sense to not show something indefinitely, but rather display nothing. Another benefit would be that sequential composition is cleaning it self up, after being done.
 ** Why monads are a good fit
-Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for a ~Commit~, combining ~Progs~) away from the developer while also making it easy to combine steps.
-The required functions also are a fit for our API. With the ~>>=~ Operation we give the developer an easy way to further compose their sequential components. ~return~ gives us a new type, which we can use to distinguish our sequential and parallel compositions from each other.
+Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for a ~Commit~, combining ~Progs~) away from the developer while providing strong tools to combine our sequential steps, contributing to an easy to use API.
+The required functions also are a great fit for our API. With the ~>>=~ Operation we give the developer an easy way to further compose their sequential components. ~return~ requires us to make a new type, which we can in turn use to distinguish our sequential and parallel compositions from each other.
 Because we wait for a ~Commit~ to be emitted, we need to take asychronisity into account. Thus we need the previously described tools to build up a blueprint and a specially labeled environment in which that blueprint is being executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 ** Tail Call Optimisation
 Neither Java [SWH] nor versions of JavaScript that we use in our browsers [2AY], feature Tail Call Optimization (TCO). Both langauges are used as host languages, Java for Clojure and JavaScript for ClojureScript. Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guarenteed that successive invocations of our monadic bind won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows. Burdening the developer to wory about depth of composition would be undesirable, as the goals is to create an easy to use API.
+It is therefore important to add further abstraction to the bind logic, to allow us to implement some kind of TCO around it.
 *** TCO in ClojureScript
 While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale re-write of the code into a loop [LC1]. This allows for worry free function invocations.
 Another way to gain TCO is to use whats called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved.
@@ -427,29 +430,29 @@ Now for as long as the function returns another function, we will call it. If a 
   }
 #+end_src
 *** Custom TCO
-While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be to be developed. We will revisit the concept of the trampoline again during the implementation.
+While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronise functions, in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be developed. We will revisit the concept of the trampoline again during our implementation later.
 * Implementation
-Previously we have discussed which functions our API should offer, now we will focus on implementing these individual functions and features. Being Aside from being functioning, we will also talk about optimizing the ~runner~ function and implementing macros for easy of use.
+Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for easy of use.
 ** then
 Discussed earlier, the ~then~ function needs to compose steps together. The basic idea is trivial. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing #15 shows the definition of a ~record~ type as well as the ~make-bind~ function.
 #+CAPTION: Record definition of the bind type and a helper function to filter out incorrect values
 #+begin_src clojure
-  (defrecord Bind [prog continuation])
+  (defrecord Bind [prog cont])
 
-  (defn make-bind [prog continuation]
+  (defn make-bind [prog cont]
     {:pre [(prog? prog)]}
-    (->Bind prog continuation))
+    (->Bind prog cont))
 #+end_src
 
 However, just passing a ~Prog~ everytime would be of little use. A ~Prog~ just contains a single step. Things get interesting if we want to pass a ~Bind~, because we cannot just wrap the ~Bind~ again, as it already contains a ~Prog~.
-If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use Continuation-Passing Style (CPS) transformations to easily change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind. A visual explanation can be seen in Figure #14.
-#+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new cont is a ~Bind~ out of the previous cont and the passed cont.
-#+ATTR_LATEX: :width 200px
+If that is the case, ~then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and book-keeping purposes (see Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use Continuation Passing Style (CPS) transformations to swiftly change our previous continuation into something that gets rid of the nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the continuation of the passed ~Bind~ with whats passed to the annoymous function (to create a ~Prog~) and using the passed continuation as the actual continuation of the second bind. A visual explanation can be seen in figure 4.
+#+CAPTION: ~Prog 1~ is lifted from the passed ~Bind~. The new ~continuation~ is a ~Bind~ out of the previous ~continuation~ and the passed ~continuation~.
+#+ATTR_LATEX: :width 350px
 [[./images/cps-transformation.png]]
 This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ (and ~Prog~) trivial. It also guarentees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
 
 Now, inside of our ~then~ function we need to handle both cases. For this we differenciate between a ~then~ call where a ~Prog~ is passed and where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CPS-transformation. See Listing #15 for the code.
-#+CAPTION: Definition of the ~then~ function using csp-transformation
+#+CAPTION: Definition of the ~then~ function using CPS-transformation
 #+begin_src clojure
   (defn then [prog cont]
     {:pre [(or (bind? prog) (prog? prog) (c/item? prog))
@@ -460,7 +463,7 @@ Now, inside of our ~then~ function we need to handle both cases. For this we dif
       (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
 #+end_src
 To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our functions. In this case we say that the ~prog~ can be a ~Prog~, ~Bind~ or even an ~Item~. The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
-** runner
+** TODO runner
 The place for our monad to be executed in is the ~runner~. It will receive a ~Prog~ or ~Bind~. The ~runner~ is the most complex function of our API because of all the things it needs to do:
 1. Book-keeping of state for steps
 2. Catch emitted ~Commits~
@@ -510,7 +513,7 @@ Our lense is a function with multiple arities. That means it can take different 
 To restrict access, so when it is called from the perspective of the child, the signature with one parameter is called. Here the list inner, outter and what else is destructured and everything besides the ~first~ element is ignored. That ~first~ element is then returned.
 On changes to the state from within our child, the signature with two parameters is called. The change being the second parameter, here called ~small~. We again destructure the first argument but now ignore the previously named ~first~ and access the previously ignored ~rest~. All that is left is to combine them with ~cons~ and return them as a ~vector~.
 *** Implementing Tail Call Optimization
-Previously we discussed what TCO is and why we want it. Now it is time to take a deeper look at how we implement it by examing line 2-5 and 10-12 in listing 15.
+Previously we discussed what TCO is and why we need it. Now it is time to take a deeper look at how we implement it by examing line 2-5 and 10-12 in listing 15.
 
 Like mentioned earlier ClojureScript already provides TCO with the ~loop~ macro, unfortunately we can't take advantage of it because of the asychronos nature of reacl-c. This is not a problem as we can use the previously explained concept of trampolines to make our own TCO.
 
@@ -608,7 +611,7 @@ For this we will simply wrap our ~then~ macro with our primitive ~runner~ from t
 #+end_src
 ** Limitations
 While the current implementation achieves what it set out to do, some compromises had to be made. First, like mentioned earlier, it is being relied on the fact that the developer actually emits a ~Commit~ in what they label a ~Prog~. Sadly, there is currently no logic to make sure that the developer is forced too or reminded if they aren't.
-Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composible in parallel. Further more, the current API offers only primitives and none of the deep functionality which is present in reacl-c for the parallel composibility. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there isn't an ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like a ~Maybe~ monad.
+Another limitation is that a ~runner~ is a dead end for sequential composition, as it is only further composable in parallel. Further more, the current API offers only primitives and none of the deep functionality which is present in reacl-c for the parallel composability. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there isn't an ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like a ~Maybe~ monad.
 * Examples
 With our API now defined and implemented we can take a quick look some examples, to see if we have improved the developer experience.
 ** Sign-up component
@@ -695,12 +698,12 @@ But, not just a seperate type for terminating early could be interesting. Having
 Besides new types, another improvement would be to force a developer to ~Commit~ something inside of a ~Prog~. The implementation for this is unclear, however the feature is highly important as it could be a major source of bugs.
 Lastly, helper functions for sequential composition, like the ones that exist in reacl-c for parallel composition, could be a possible addition. Things like a ~def-prog~ function that works like ~def-item~ but also wraps the resulting ~Item~ inside of a ~return~. Or the ability to map actions emitted from a component, to be ~Commits~, so the actual component doesn't need to be changed, but can still be used inside of a sequential-composition. There are problaly many more applications of the deep pool of functions inside of reacl-c, so these are just some that had been found.
 * Conclusion
-Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composible. Despite all of the work happening under the hood, from tail call optimization to handling the asychronosity, the developer can use the API without being ever bothered by either. At the same time usage is dead easy, thanks to taking an already well understood way of working with data, like with ~let~, as an inspiration.
+Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composable. Despite all of the work happening under the hood, from tail call optimization to handling the asychronosity, the developer can use the API without being ever bothered by either. At the same time usage is dead easy, thanks to taking an already well understood way of working with data, like with ~let~, as an inspiration.
 While the API could be enhanced, the added complexity of some proposels could also take away from the current present simplicity. It's best to first see how the current implementation solves the problem presented by workflows, before making big additions.
-We're pleased with the implementation and are excited to find out what we can build with it.
+We're pleased with the implementation and are excited to find out what can build with it, in the future.
 * Sources
-- [R1] https://reactjs.org/
-- [R2] https://github.com/active-group/reacl-c/
+- [1] https://reactjs.org/
+- [2] https://github.com/active-group/reacl-c/
 - [CD1] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
 - [CD2] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
 - [CD3] https://clojuredocs.org/clojure.core/let
