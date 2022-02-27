@@ -616,7 +616,7 @@ For this we will simply wrap our ~then~ macro with our primitive ~runner~ from t
 ** Limitations
 While the current implementation achieves what it set out to do, some compromises had to be made. First, as mentioned earlier, it is being relied on the fact that the developer actually emits a ~Commit~ in what they label a ~Prog~. There is currently no logic to make sure that the developer is forced too or reminded if they aren't. Another limitation is that the current API offers only primitives and our two macros, but none of the deep functionality which is found in reacl-c for the parallel composability. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there is no ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like with a ~Maybe~ monad.
 * Examples
-With our API now defined and implemented we can take a quick look some examples, to see if we have improved the developer experience.
+With our API now defined and implemented we can take a quick look at some examples, to find out if we have improved the developer experience.
 ** Sign-up component
 Our initial example, to explain what sequential composition is, was a sign-up component. That makes sense because modern sign-up processes are often split up into parts. Lets build that three step sign-up process again, this time with our API.
 #+CAPTION: Example usage of our API for the sign-up process shown in the "Motivation" chapter
@@ -625,33 +625,33 @@ Our initial example, to explain what sequential composition is, was a sign-up co
 	   code (return verification-code)
 	   _ (done [personal code])])
 #+end_src
-Listing 25 shows the sequential composition. We wrap the components before passing them. If the developer knows that the item will only be used in a sequential composition they can of course also use ~def~ and wrap their ~Item~ inside with a ~return~.
-The only necessary change inside of our components is to emit a ~Commit~. See listing 26 for this, where we change the behaviour of the ~personal-info~ component.
-#+CAPTION: Excerp of the ~personal-info~ component. Parts have been removed for clarities sake. This is a parallel composition that emits a ~Commit~ once the user presses the button.
+Listing 30 shows the sequential composition. We wrap the components inside of ~return~ before passing them but aside from that it looks  identical to a ~let~ call. If the developer knows that the item will only be used in a sequential composition they can of course also use ~def~ and wrap their ~Item~ inside with a ~return~.
+The only necessary change inside of our components is to emit a ~Commit~. See listing 31 for this, where we change the behavior of the ~personal-info~ component.
+#+CAPTION: Excerpt of the ~personal-info~ component. Parts have been removed for clarity's sake. This is a parallel composition that emits a ~Commit~ once the user presses the button.
 #+begin_src clojure
-  (c/def-item personal-info
-    (c/local-state
+  (core/def-item personal-info
+    (core/local-state
      {:name "" :email ""}
-     (c/dynamic
+     (core/dynamic
       (fn [[outter inner]]
-	;; Input code ...
+	;; input field code ...
 	(dom/button
-	 {:onclick (fn [state action] (c/return :action (bind/make-commit inner)))}
+	 {:onclick (fn [state action] (core/return :action (bind/make-commit inner)))}
 	 "Continue")))))
 #+end_src
 This is all that is needed to create our sign-up process. The ~runner~ can now be placed into a parallel composition.
 ** Endless loop
-Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this trivial even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how often we have looped. Listing 26 shows an example of an infinite loop using our macros.
-#+CAPTION: Example of infinite loop using macros
+Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how often we have looped. Listing 32 shows an example of an infinite loop using our macros.
+#+CAPTION: Example of an infinite loop using macros.
 #+begin_src clojure
   (defn infinite-loop [n]
     (m/runner [a (item n) ;; helper function which creates Prog
 	       _ (infinite-loop (inc a))]))
 #+end_src
-It could be possible that there are even conciser methods possible, however this implementation is small enough for now. Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~_~ to ignore its result, like they would also do with a function parameter.
+It could be possible that there is an even compactor way, however this implementation is small enough for now. Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~\_~ to ignore its result, like they would also do with a function parameter.
 ** Re-using compositions
-Using just the ~then~ macro (without the ~runner~), we can save a sequential composition, to use it again in multiple places. Because ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See listing 27 for an example of an order process, in which the selection of the product is defined outside of the ~runner~. Note that we loose the ability to easily access the results of the previous sequential composition, which happened in the first ~then~. Therefor we have to use the end-expr of our then, to gain access to these values again in the following composition.
-#+CAPTION: Using just ~then~ and ~def~ to define a shareable sequential composition
+Using just the ~then~ macro (without the ~runner~), we can save a sequential composition to use it again in multiple places. Because ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See listing 33 for an example of an order process, in which the selection of the product is defined outside of the ~runner~.
+#+CAPTION: Using just ~then~ and ~def~ to define a shareable sequential composition.
 #+begin_src clojure
   (def burger-selection
     (m/then [size size-selection
@@ -665,8 +665,9 @@ Using just the ~then~ macro (without the ~runner~), we can save a sequential com
 	       payment payment-options
 	       _ (confirm-order [credentials order payment])]))
 #+end_src
+Note that we loose the ability to easily access the results of the previous sequential composition, which happened in the first ~then~. Therefore we have to use the ~end-expr~ of our then, to gain access to these values again in the following composition.
 ** Mixing primitives and macros
-Because our macros don't add additional logic, we can mix primitives and macros. In listing 28 we use our primitive ~then~ inside of our macro ~runner~. Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
+Because our macros don't add additional logic, we can mix primitives and macros! In listing 34 we use our primitive ~then~ inside of our macro ~runner~. Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
 #+CAPTION: Showcasing composition by using the primitive ~then~ to first compose a complex structure, before inserting it into our macro ~runner~.
 #+begin_src clojure
   (def mix-primitives-macros
@@ -684,8 +685,8 @@ Let's take a disease testing facility as an example. We're going to model the fo
 2. Select test type and start test
 3. Enter test result
 4. Print, showcase or send result to patient
-Our sequential composition for this process can be seen in listing 27. Noteworthy would be the option to pass the collected information further along, which could be used to collect statistics (e.g for positive cases etc.).
-#+CAPTION: Example of system for testing of disease
+Our sequential composition for this process can be seen in listing 35. Noteworthy would be the option to pass the collected information further along, which could be used to collect statistics (e.g for positive cases etc.) by reducing over the information with each successful flow.
+#+CAPTION: Example of a system for a facility that is testing for diseases.
 #+begin_src clojure
   (defn test-patient-for-disease []
     (m/runner [personal-info aquire-personal-info
