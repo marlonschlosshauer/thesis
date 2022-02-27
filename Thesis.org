@@ -145,30 +145,29 @@ While ~core/local-state~ and ~core/isolate-state~ allows us to add additional st
 #+end_src
 To change state the ~core/return~ function is used. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
 * What is a monad
-There are different kinds of Monads that serve different purposes. In general, monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. This is helpful, because we can abstract away difficult or complex logic, so that the developer can continue working, as if the types they use are primitives.
-One use case for some monads is to allow us to chain operations on often abstracted away types, to transform data or control the flow of the proram. In order to allow for sequential composition we need to make use of both, with a focus on controlling when and what is executed and shown.
+Monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. This is helpful, because we can abstract away difficult logic, so that the developer can continue working with our complex types, as if they are primitive types.
+There are different kinds of Monads that serve different purposes. One use case for some monads is to allow us to chain operations on often abstracted away types. This is done to transform data or control the flow of the program or both.
+In order to allow for sequential composition we need to make use of both, with a heavy focus on controlling when and what is executed and shown.
 ** The Maybe Monad
-A popular monads is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might be return ~Nothing~ or ~Just~ of something. What makes this type a monad is the fact that we can chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[GH1].
-#+CAPTION: Instead of having to manually check if each operation succeded, thanks to the ~Maybe~ type and >>= operator, the chain will stop if one of the calls return a ~Nothing~
+A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something. Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[3]. See listing 6 for an example.
+#+CAPTION: Instead of having to manually check if each operation succeeded, thanks to the ~Maybe~ type and ~>>=~ operator, the chain will stop if any of the calls return a ~Nothing~.
 #+begin_src haskell
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
 #+end_src
 
-Monads are everywhere and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share, because the actual logic is hidden away, yet allow us to continue to easily use them, because they're composable.
+Monads are everywhere and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share and make API's easier to use, because they're composable.
 Common cases for monads are IO operations, handling of errors, UI work and to establish a context of values.
 ** Whats required to be a monad
-To be a monad a type needs to provide two functions and satisfy three rules[HW1]. The required functions are ~>>=~ (also called bind) and ~return~.
-A bind takes an instance of a monad ~M~ and takes a function that gets a normal value and returns another instance of that type ~M~. The bind function return the result of the second argument, the passed function. We give it a monad and a function and get another monad out. This is what enables us to chain these operations together.
-The second function, the ~return~, takes a value and makes a monad out of it. This usually means wrapping the value in a monad type. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ value (with the value of 1 inside of it). Return is sometimes also referred to as ~pure~.
-
-It's often helpful to see these functions in the Haskell notation, to understand them. See listing 7 for more.
+To be a monad the type needs to provide two functions and satisfy three rules[4]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function.
+A ~bind~ takes an instance of a monad ~M~ and a function that gets a value ~a~ and returns an instance of type ~M~ with ~a~ inside of it. The result will be a monad ~M~ again. This is what enables us to chain these operations together.
+The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). The ~return~ function is sometimes also referred to as ~pure~. To better understand the signature, see listing 7 where Haskell notation has been used to spell out the types.
 #+CAPTION: Haskell notation of the functions ~bind~ and ~return~
 #+begin_src haskell
   M a >>= (a -> M b) = M b
   return a = M a
 #+end_src
 
-Our implementation of these functions need to fullfill the following three rules to be considered a monad[WH1]:
+An implementation of these functions needs to fulfill the following three rules to be considered a monad[5]:
 - Left identity: ~return a >>= h = h a~
 - Right identity: ~m >>= return = m~
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
@@ -704,17 +703,17 @@ We're pleased with the implementation and are excited to find out what can build
 * Sources
 - [1] https://reactjs.org/
 - [2] https://github.com/active-group/reacl-c/
+- [3] https://www.youtube.com/watch?v=YDj20ySKWP8
+- [4] https://wiki.haskell.org/Monad
+- [5] https://wiki.haskell.org/Monad_laws
 - [CD1] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
 - [CD2] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
 - [CD3] https://clojuredocs.org/clojure.core/let
-- [HW1] https://wiki.haskell.org/Monad_laws
 - [QCEFP1] Quick Clojure: Effective Functional Programming - 10. Macros
 - [RC1] https://github.com/active-group/reacl-c/blob/0.10.10/src/reacl_c/core.cljc#L94
 - [KH1] https://github.com/khinsen/monads-in-clojure
 - [LC1] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
 - [SWH] Tail Call Optimization in the Java HotSpotTM VM
 - [2AY] https://2ality.com/2015/06/tail-call-optimization.html
-- [GH1] https://www.youtube.com/watch?v=YDj20ySKWP8
-- [HW1] https://wiki.haskell.org/Monad_laws
 
 
