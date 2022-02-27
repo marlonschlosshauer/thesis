@@ -31,7 +31,7 @@ An example of a sequential composition would be to first ask the user for their 
 Because of this dependency, composing sequentially isn't just an optimization. It is a fundamental building block of how an application is supposed to operate. Just like how we need the ability to show both an input field and a button at the same time (to confirm the input), we also need the ability to model what happens after (and possibly before) that button has been pressed.
 
 But despite that need, the actual support for sequential composability by modern frameworks is either non existent or very poor.
-While some of the desired result can be achieved by making clever use of parallel composability or using traditional links, most aren't truly sequentially composible and both suffer from multiple issues, some of which are:
+While some of the desired result can be achieved by making clever use of parallel composability or using traditional links, most aren't truly sequentially composable and both suffer from multiple issues, some of which are:
 - They don't yield things which we can compose further (into more sophisticated workflows)
 - Reusing these components leads to a lot more abstraction
 - It produces code that becomes difficult to understand at a glance (or at all)
@@ -41,8 +41,8 @@ There are more issues. The inability to easily test just the order of the compon
 Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we gain another tool to control our programs. Not only would our code be more expressive and more concise, bugs could also be reduced because the resulting systems represent more truthfully what they set out to do, thanks to the provided API of the framework. Most importantly, we could build workflows out of smaller flows or other workflows entirely and share these across our applications, just how do with our UI elements.
 Given the lack of support and the possible applications it is of high interest to find a way to compose sequentially, easier.
 * What is React
-React[R1] is a popular UI framework developed by Meta (formerly Facebook) and written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is available and loaded from a single page. Instead of having each page defined in HTML, developers are able to define their pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browsers DOM.
-#+CAPTION: Example of JSX to define a profile
+React[1] is a popular UI framework developed by Meta (formerly Facebook) and is written in JavaScript. Like other modern JavaScript frameworks, it is a Single-Page-Application (SPA), which means the entire application is loaded and available after visiting a single page. Instead of having each page defined in HTML, developers are able to define all pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browser's DOM.
+#+CAPTION: Example of JSX to define a profile component
 #+begin_src javascript
   const profile = ({name, age, image}) => {
       return (
@@ -57,12 +57,11 @@ React[R1] is a popular UI framework developed by Meta (formerly Facebook) and wr
   }
 #+end_src
 
-An advantage of a SPA design is that commonly used components, like a header and footer, can be shared over multiple pages without having to be retransmitted, as the JavaScript code is still in memory. In such a system navigation does not change the current page, but rather tells React to build the desired next page from the JSX definition. Besides requiring less bandwith on succesive visits, this also leads to better response times on page visits after the initial load, as those pages are also already in memory.
+An advantage of a SPA design is that commonly used components, like a header and footer, can be shared over multiple pages without having to be retransmitted, as the JavaScript code is still in memory inside of the client's browser. In such a system navigation does not mean the browser is navigating to another page, but rather it tells React to build the desired next page from the JSX definitions already present on the client. Besides requiring less bandwidth on successive visits, this also leads to better response times on page visits after the initial load, as those pages are also already in memory. The downsides are that the client needs to compute the page by executing JavaScript to build it and the longer initial load times associated with this computation.
 
-Another important feature of React is that the developer must explicitly declare the state of a component. This is used to improve performance, as only components which
-which are effected by a state change are freshly render. Old components remain untouched in memory.
+Another important feature of React is that the developer must explicitly declare the state of a component. This is used to improve performance, as only components which are effected by a state change are rendered upon changes. Old components remain untouched. This also helps with identifying where state is and how it might be changed in the future.
 
-React is also a popular basis for other frameworks like Preact, Reagent, reacl-c and others.
+React is also a popular basis for other frameworks like Preact. It is especially popular for ClojureScript based frameworks. Noteable examples are reacl-c, om, reagent, rum and others.
 * What is reacl-c
 Reacl-c [R2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks (Reagent, Om, Rum), reacl-c wraps React to take advantage of Clojures immutable datastructures. Like React, reacl-c allows the defining of components, called "items" in reacl-c. These items can have child items, thus forming a tree, just like in React.
 
