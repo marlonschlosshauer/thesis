@@ -21,7 +21,8 @@ Components are an important tool in modern frontend development. In traditional 
 [[./images/parallel-composition-highlighted.png]]
 
 However, modern frontend applications have gone beyond just serving information with HTML. Websites often act as a digitalization of a workflow, where the order of components, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. That is to say, we say which steps we have and in what order they appear. Together they form a sequence.
-The resulting sequentiality is different from how we know it from imperative programming, as we don't mutate state with each step. Rather the result of each step is fed into the next. This allows us to address the essential sequentiality of the domain while not creating accidental sequentiality, as we still have access to the tools provided by functional programming.
+It is important to point out that the here mentioned sequentiality is different from how we might know it from imperative programming (IP). In IP, sequentiality is used, even if the domain doesn't demand it, because of its writing style. We could call this accidental sequentiality, as it is only a by-product of language design and history, rather than a conscious engineering decision.
+Because our sequential composition exhibits natural sequentiality (e.g first step ~A~, then step ~B~) we also want to represent that in our code.
 An example of a sequential composition would be to first ask the user for their email address, then, after having the user enter a valid email, show another input field, where the the user can enter a code that was sent to them, using their email. Notice that the second step can depend on information that was gathered by the previous step.
 
 #+CAPTION: Example of sequential composition of a sign-up component. The first composition combines two steps, before being again further composed by adding a third step.
@@ -33,9 +34,10 @@ Because of this dependency, composing sequentially isn't just an optimization. I
 But despite that need, the actual support for sequential composability by modern frameworks is either non existent or very poor.
 While some of the desired result can be achieved by making clever use of parallel composability or using traditional links, most aren't truly sequentially composable and both suffer from multiple issues, some of which are:
 - They don't yield things which we can compose further (into more sophisticated workflows)
-- Reusing these components leads to a lot more abstraction
+- Reusing these components leads to a lot more boilerplate
 - It produces code that becomes difficult to understand at a glance (or at all)
-- Most importantly: the logic for advancing the steps and the book-keeping lives now inside the component, with the parallel composing logic
+- Logic for advancing steps (and bookkeeping) live besides the parallel composing logic
+- Bookkeeping is scattered throughout the codebase
 There are more issues. The inability to easily test just the order of the components and the huge time cost required to refactor constructs of this nature are just the starting point.
 
 Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we gain another tool to control our programs. Not only would our code be more expressive and more concise, bugs could also be reduced because the resulting systems represent more truthfully what they set out to do, thanks to the provided API of the framework. Most importantly, we could build workflows out of smaller flows or other workflows entirely and share these across our applications, just how do with our UI elements.
@@ -75,6 +77,8 @@ Instead of having the parent pass down a function to, e.g manipulate state, the 
 [[./images/emit-vs-callback.png]]
 
 As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon.
+
+The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system[x]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.  
 #+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 #+begin_src clojure
   (defn-item abstract-button [text]
@@ -97,7 +101,7 @@ To make an ~item~ reacl-c provides a namespace called ~dom~ that contains all th
 #+end_src
 There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each later.
 
-~Items~ can also receive a ClojureScript map as their first argument. With this map things like CSS classes and inline-style can be applied. If the ~item~ is interactive, like Buttons and inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback.
+Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also receive a ClojureScript ~map~ as their second argument. With this ~map~ things like CSS classes and inline-style can be applied. If the ~Item~ is interactive, like Buttons and Inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback.
 ** Emitting and handling actions
 Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this is a crucial feature to make items composable.
 To emit an action the child needs to call ~core/return~ with the ~:action~ keyword and the desired payload. The action will travel upwards until it is caught by a ~core/handle-action~. The action handler function takes two arguments. First an ~item~ to wrap and receive actions from. Second, a function that defines what do to when it receives an action.
@@ -120,7 +124,6 @@ To emit an action the child needs to call ~core/return~ with the ~:action~ keywo
       (fn [ac msg]
 	(core/return :state {:pressed? msg})))))
 #+end_src
-It is important that the function which is given to ~core/handle-action~ calls ~core/return~ at the end to either notify a parent or itself of the state change, as an action is a side-effect.
 ** How state is managed
 Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle this problem. Much like with React, developers can easily make out if a component is using or changing state, which makes working with state easier.
 
@@ -471,7 +474,7 @@ Now, inside of our ~then~ function we need to handle both cases. For this we dif
       (make-bind (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
       (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
 #+end_src
-To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our function. In this case we say that the ~prog~ can be a ~Prog~, ~Bind~ or even an ~Item~. The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
+To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our function. In this case we say that the ~prog~ can be a ~Prog~ (or it's subtype ~Bind~). The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
 ** TODO runner
 The place for our monad to be executed in is the ~runner~. It will receive a ~Prog~ or ~Bind~. The ~runner~ is the most complex function in our API because of all the things it needs to do:
 1. Show current step
@@ -500,7 +503,7 @@ As such we will show the code in its entirety once in listing 21 and go in depth
 *** Basic Functionality
 The goal of the ~runner~ is to hold and display what is inside of a ~Bind~ (or ~Prog~). While it does this, it wraps the ~Bind~ and waits for a ~Commit~ which will trigger it to call the ~continuation~ of the ~Bind~.
 To understand this better we're going to focus on lines 7-14 of listing 21. First notice the ~core/handle-action~ call. This function takes two parameters. First an ~Item~ to display, second a ~function~ to call once the ~Item~ emits something. The function that will be called can be seen at the bottom on lines 11-14. We don't directly pass an ~Item~ however. We pass a ~focus~ function. This is done to ~core/focus~ the state on a specific part. Namely limiting the implicitly passed state to what is outside of the runner, instead of leaking the bookkeeping state of the runner downwards. This function again takes two parameters. First a lens (function of two arities) and second an ~Item~. We will talk more about the lense in the next chapter.
-The second parameter is the in our API defined ~show~ function, which just takes either ~Bind~, ~Prog~ or ~Item~ and unwraps it to an ~Item~ again.
+The second parameter is the ~show~ function defined in our API, which just takes either ~Bind~, ~Prog~ or ~Item~ and unwraps it to an ~Item~ again.
 From this point on we can talk about the ~function~ that was passed to the ~handle-action~, which takes up lines 11-14. That function has two parameters again. First is the state of the ~runner~ at the moment at which the action was emitted from the ~Item~. We have access to this, so we can reduce the state with the second parameter, the action which the ~Item~ sent, into a new state. We then return that new state with the ~core/return~ function (using the ~:state~ keyword). This lets the component know that it needs to update its state, therefore render itself again. In the parameter definition of our function (line 11) the state is destructured into the outter state, which was implicitly passed to our ~runner~ and the state of the ~runner~ itself (here named ~st~). In line 12 we have a check to confirm the ~Item~ sent us an action that is a ~Commit~. If it isn't a ~Commit~, the action will propagate further upwards because of the ~core/return~ call in line 14. We also check if our current state holds a ~Bind~, because only if we have a ~Bind~, can we call a ~continuation~. In line 13 we then call the ~continuation~ of our ~Bind~ with the payload of the ~Commit~ and return it as state of our ~runner~.
 *** Lens
 The previously mentioned lens in line 9 is needed to stop leaking the bookkeeping for our tail call optimization, downards into our ~Item~.
@@ -517,12 +520,12 @@ The code for the ~first-lens~ can be found in listing 22.
      (vec (cons small rest))))
 #+end_src
 
-Because we don't want the internal state of our ~runner~ to leak, but we do want the state surrounding the ~runner~ to be passed down, we ignore the inner state (bookkeeping) and pass down the outter state (implicitly passed state).
-Our lense is a function with multiple arities. That means it can take different amounts of parameters. Ours being of arity of two, means it has two different signatures. A signature where it gets one parameter and a signature where it takes two parameters.
+Because we don't want the internal state introduced by our ~local-state~ call (inside of our ~runner~) to leak, but we do want the state surrounding the ~runner~ to be passed down, we ignore the inner state (bookkeeping) and pass down the outer state (implicitly passed state).
+Our lens is a function with multiple arities. That means it can take different amounts of parameters. Ours being of arity 1 and 2, means it has two different signatures. A signature where it gets one parameter and a signature where it takes two parameters.
 To restrict access, so when it is called from the perspective of the child, the signature with one parameter is called. That is our yanker. Here the passed parameter is destructured and everything besides the ~first~ element is ignored. That ~first~ element is then returned. On changes to the state from within our child, the signature with two parameters is called. That is our shover. The change being the second parameter, here called ~small~. We again destructure the argument but now ignore the previously named ~first~ and instead access the previously ignored ~rest~. All that is left to do is to combine them with ~cons~ and return them as a list.
 *** Implementing Tail Call Optimization
 Previously we discussed what TCO is and why we need it. Now it is time to take a deeper look at how we implement it by examining lines 3-6 and lines 11-14 in listing 21.
-Like mentioned earlier ClojureScript already provides TCO with the ~loop~ macro, unfortunately we can't take advantage of it because of the asynchronous nature of reacl-c. This is not a problem as we can use the previously explained concept of trampolines to make our own TCO.
+As mentioned earlier ClojureScript already provides TCO for functions with the ~loop~ and ~recur~ macros. We however need recursion on our ~Progs~, because of that we cannot simply use ~loop~ and ~recur~. This is not a problem though, as we can use the previously explained concept of trampolines to make our own TCO.
 The basic idea is to save the ~Bind~ in our state and update the state each time a ~Commit~ comes in, with the result of the ~continuation~ of our ~Bind~. Updating the state will trigger another render, where the current state is the next step.
 Lets examine it in more detail:
 In our ~runner~ we define the ~Bind~ that was passed into the function (named just ~b~) as local state using the ~core/local-state~ function. This is the first part of our trampoline. Next we call ~core/dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 6 to ~outter~ (which is immediately discarded with ~\_~) and ~inner~ (which is not discarded). This is clever, as we now have access to the state of our ~runner~ component, through the parameter of the function. We need to access that state, because we want to both display the ~Bind~ that it holds and wait for it to ~emit~ a ~Commit~ (using the ~handle-action~ function).
@@ -543,7 +546,7 @@ To display our sequential composition we can use the ~runner~. If however we jus
 ** Macros
 The available primitives already enable the developer to craft elaborate sequential compositions, however they aren't able to provide the ~let~ like usage on their own. For this reason, we will implement macros for our API. Only a macro version of the ~runner~ is required, but it makes more sense to enhance the ~then~ primitive first and later wrap the ~runner~ with something that takes advantage of the ~then~ macro. Before we dive into the macros themselves, we first need to take a look at how macros work in ClojureScript.
 *** TODO Setup
-Both Clojure and Clojurescript have access to macros, though implementing one is more complex in the later. This is because of the compilation process. Macros are run during the compile process of ClojureScript. In short, this means the compilation process needs to be kept in mind when writing ClojureScript macros. You cannot, for instance, put macros in a ~.cljs~ file.
+Both Clojure and ClojureScript have access to macros, though implementing one is more complex in the later. This is because macros are always expanded by Clojure, even if they may produce ClojureScript code. This means Clojure is always involved, even in pure ClojureScript projects. This means the compilation process needs to be kept in mind when writing ClojureScript macros. You cannot, for instance, put macros in a ~.cljs~ file.
 Regardless, it is still possible to both write macros for ClojureScript and write macros that use ClojureScript code.
 There are multiple ways to write a macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword in the namespace definition, to the namespace defined in the ~.clj~ file.
 #+CAPTION: Example definition of a macro in ~macros.clj~ that accesses ClojureScript code.
