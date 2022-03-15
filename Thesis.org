@@ -10,6 +10,12 @@
 #+TOC: headlines
 #+LATEX: \newpage
 
+* Acknowledgment
+I'd like to thank some of the many people that supported me while I was writing this thesis.
+First of all I'd like to thank my supervisor, Markus Schlegel, for not only providing many of the ideas found in this thesis, but also sharing his vast knowledge of function programming and reacl-c.
+I'd also like to thank the Active Group GmbH for making this thesis possible. I'm very thankful and happy that I got to explore such an interesting topic.
+Lastly I'd like to thank my professor, Prof. Dr. Stefan Wehr, for introducing me to the Active Group GmbH and also giving helpful answers to my questions.
+#+LATEX: \newpage
 * Abstract
 The composition of UI elements is a necessary and well supported tool in modern frontend development. However, in this thesis we discuss that composing UI elements could be split into parallel and sequential composition. We explain the difference between them, go into detail about why sequential composition is important, examine the current support (or lack thereof) for it and explore a developer friendly API for sequential composition.
 Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed API in it. At the end we give examples of sequential composition using our implementation and discuss possible improvements.
