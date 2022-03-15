@@ -399,7 +399,7 @@ The following table lists the symbols:
 | ~      | Unquoting      | Start execution                   |
 If we quote something with ~\'~ or ~\`~ it will not be evaluated yet[11]. The difference between the two is that ~\`~ qualifies each expression with their full namespace. The ~\~~ symbol turns on evaluation inside of a ~\`~ again[11].
 *** What are the uses cases for macros?
-Macros provide so much freedom that they enable us to enhance not just our API but also the language itself. If the problem is beyond manipulating data, but rather about manipulating the functions, macros are a good fit.
+Macros provide so much freedom that they enable us to enhance not just our API but also the language itself. If the problem is beyond manipulating data, but rather about manipulating code, macros are a good fit.
 They allow a developer to provide their API exactly how they imagine it. That's why we will make use of them in our implementation.
 However, while things like binding symbols to values under the hood can be used to make things easier for the developer, it can also cause confusion as developers have no idea where the symbol actually came from and can only assume that it works because a macro is used. That assumption gives them little information though. They can also lead to confusing error messages, as another step is added before the evaluation. And because of their freedom they can be complicated to implement. Lastly, as we're going to discuss later, macros aren't as easy to implement in ClojureScript as they are in Clojure. So macros must be used with care, even if they can be a tremendous help.
 *** Which macros will be implemented?
