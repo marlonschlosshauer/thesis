@@ -387,11 +387,6 @@ A possible alternative to this would be to omit the body function entirely and i
 The ~runner~ function executes our composition and should be able to be used just like a regular ~item~ when wanted. It should be further composibly in parallel with other ~items~ and actions should be able to be caught from it.
 Inside of the ~runner~ we will have steps. Those steps should be composable thanks to another function. For now we can steal terminology from the earlier introduced monads and call this function ~bind~ or ~then~.
 These two functions should be the primitives of our implementation.
-* Why composibility is important
-Composability is already hugely important for software developers. Not only can we compose functions with other functions, but it is also what allows us to build modern UI elements so effortlessly. It even got its own OOP software-design pattern in the form of the "Favor Composition over Inheritance" pattern.
-
-The benefits are plentiful. Arguably the biggest advantage is that it allows us to construct bigger things out of many smaller things. This in turn allows us to break a problem into multiple pieces. Being able to address a single concern at a time, we can not only test each piece on their own but also share components easier. Another big benefit is that we can, if constructed correctly, add to our composition forever. Because code evolves over time, this is an appealing property to have.
-Both of these attributes are important for frontend development, as we both want to be able to reuse our components and continue to add to them without worry.
 * API Design
 This being the introduction of sequential composition into reacl-c, it was important to provide strong primitives. Reacl-c already has excellent tools for parallel composition, so the sequential composition should be closely aligned with them, to be intuitive for developers.
 The implementation needs to also hide the heavy lifting done in the background and not cause any unexpected issues that would cause it to become unusable for any scenario. The sequential composition should not interfere with the parallel composition and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially however they like without any limitations.
