@@ -121,7 +121,7 @@ React is also a popular basis for other frameworks like Preact. It is especially
 * What is reacl-c
 Reacl-c [2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier. Like other ClojureScript frameworks, reacl-c wraps React to best take advantage of Clojure's immutable data structures. Like React, reacl-c allows the definition of components, called ~items~. These ~items~ can have child ~items~, thus forming a tree, just like components do in React.
 
-To make composing of ~items~ easier reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outter state, which is implicitly passed down from the parent to the child. The later has the unique feature of putting the emphasis on the parent, in their relationship. We will explore why this is important soon.
+To make composing of ~items~ easier reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outer state, which is implicitly passed down from the parent to the child. The later has the unique feature of putting the emphasis on the parent, in their relationship. We will explore why this is important soon.
 
 Another key difference to React, is that ~items~ can emit actions if an event occurs inside of them. These actions propogate upward the item tree. Every item can register an action handler, which captures the action and reacts to it. This enables the developer to define a (child) ~item~ completely independently from their potential future parents, leading to more reusable and more composable components.
 Instead of having the parent pass down a function to, e.g manipulate state, the component can emit an action upwards and trigger the same functionability in the parent. Another benefit is that the parent component can adapt the output of the emitted action further.
@@ -132,7 +132,7 @@ Instead of having the parent pass down a function to, e.g manipulate state, the 
 
 As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon.
 
-The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system[x]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.  
+The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system[x]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.
 #+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
 #+begin_src clojure
   (defn-item abstract-button [text]
@@ -171,7 +171,7 @@ To emit an action the child needs to call ~core/return~ with the ~:action~ keywo
      {:pressed? false}
      (core/handle-action
       (core/dynamic
-       (fn [[outter inner]]
+       (fn [[outer inner]]
 	 (dom/div
 	  (dom/p (str "The button has" (if (:pressed? inner) "been pressed" "not been pressed")))
 	  buzzer)))
@@ -185,7 +185,7 @@ State in reacl-c can be shared in different, more complex, ways.
 Firstly, while a component might have state, it is not accessible to the developer until they use the ~core/dynamic~ function or ~core/with-local-state-as~ macro. This has the benefit of instantly marking a component as one that needs and works with state.
 Secondly, like mentioned earlier, state is split into two categories:
 - Inner state, which is defined inside of the component by using either ~core/with-state-as~, ~core/local-state~ or ~core/isolate-state~.
-- Outter state, or state that is passed down from the parent component.
+- Outer state, or state that is passed down from the parent component.
 The inheritance of state from the parent happens implicitly, but can be controlled by the parent through lenses (with the ~core/focus~ function). These tools are a reason why reacl-c ~items~ are so composable.
 
 While ~core/local-state~ and ~core/isolate-state~ allows us to add additional state to our component, the ~core/dynamic~ function is what gives us access to the state of the component. A combination of either one of the previous two with the ~core/dynamic~ function are often used together. The result has both added state and received access to it. See listing 5 for an example.
@@ -198,7 +198,7 @@ While ~core/local-state~ and ~core/isolate-state~ allows us to add additional st
       (dom/input
        {:placeholder placeholder
 	:value inner
-	:onChange (fn [[outter inner] e] (core/return :state [outter (.. e -target -value)]))}))))
+	:onChange (fn [[outer inner] e] (core/return :state [outer (.. e -target -value)]))}))))
 #+end_src
 To change state the ~core/return~ function is used. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
 * What is a monad
@@ -285,7 +285,7 @@ Another property to keep in mind is that the components need to be able to at le
 Listing 10 shows the example from listing 9, but it is written in reacl-c and instead of using an increasing number to keep track of which step the component showing, a keyword is used which could be used to show components in a non-linear order or loop back to the initial component after visiting the final component, as well as showing a component multiple times (with different values each time). This however means a second switch statement is needed, to map the transitions from one component to another.
 
 This causes multiple issues. The most immediate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also easy to lose track of which component will be shown next if a complex order is chosen, as no support is being provided by either the language or the framework. There is also no check if the pattern inside of our callback function is non-exhaustive.
-Importantly, this also cannot be further composed! Neither listing 9 nor listing 10 can be wrapped by themselves to further build up a sequence, as the inner component has currently no way to signal to the outter component that the next step is to be displayed.
+Importantly, this also cannot be further composed! Neither listing 9 nor listing 10 can be wrapped by themselves to further build up a sequence, as the inner component has currently no way to signal to the outer component that the next step is to be displayed.
 We solved this problem inside of the inner component by passing a callback down, to call us once the next step should be displayed.
 
 We could preemptively add a callback to our implementation, which could be called once the component is done, in case we'd ever need it in the future. This does make our component sequentially composable, however adds even more code to our component. It also requires that we keep track of our steps at yet another place: The point which determines if the component is done (and the final callback should be called). See listing 11 for more.
@@ -549,21 +549,21 @@ As such we will show the code in its entirety once in listing 21 and go in depth
 	 (core/focus
 	  first-lens
 	  (show inner))
-	 (fn [[outter st] ac]
+	 (fn [[outer st] ac]
 	   (if (and (commit? ac) (bind? st))
-	     (core/return :state [outter ((bind-continuation st) (commit-payload ac))])
+	     (core/return :state [outer ((bind-continuation st) (commit-payload ac))])
 	     (core/return :action ac))))))))
 #+end_src
 *** Basic Functionality
 The goal of the ~runner~ is to hold and display what is inside of a ~Bind~ (or ~Prog~). While it does this, it wraps the ~Bind~ and waits for a ~Commit~ which will trigger it to call the ~continuation~ of the ~Bind~.
 To understand this better we're going to focus on lines 7-14 of listing 21. First notice the ~core/handle-action~ call. This function takes two parameters. First an ~Item~ to display, second a ~function~ to call once the ~Item~ emits something. The function that will be called can be seen at the bottom on lines 11-14. We don't directly pass an ~Item~ however. We pass a ~focus~ function. This is done to ~core/focus~ the state on a specific part. Namely limiting the implicitly passed state to what is outside of the runner, instead of leaking the bookkeeping state of the runner downwards. This function again takes two parameters. First a lens (function of two arities) and second an ~Item~. We will talk more about the lense in the next chapter.
 The second parameter is the ~show~ function defined in our API, which just takes either ~Bind~, ~Prog~ or ~Item~ and unwraps it to an ~Item~ again.
-From this point on we can talk about the ~function~ that was passed to the ~handle-action~, which takes up lines 11-14. That function has two parameters again. First is the state of the ~runner~ at the moment at which the action was emitted from the ~Item~. We have access to this, so we can reduce the state with the second parameter, the action which the ~Item~ sent, into a new state. We then return that new state with the ~core/return~ function (using the ~:state~ keyword). This lets the component know that it needs to update its state, therefore render itself again. In the parameter definition of our function (line 11) the state is destructured into the outter state, which was implicitly passed to our ~runner~ and the state of the ~runner~ itself (here named ~st~). In line 12 we have a check to confirm the ~Item~ sent us an action that is a ~Commit~. If it isn't a ~Commit~, the action will propagate further upwards because of the ~core/return~ call in line 14. We also check if our current state holds a ~Bind~, because only if we have a ~Bind~, can we call a ~continuation~. In line 13 we then call the ~continuation~ of our ~Bind~ with the payload of the ~Commit~ and return it as state of our ~runner~.
+From this point on we can talk about the ~function~ that was passed to the ~handle-action~, which takes up lines 11-14. That function has two parameters again. First is the state of the ~runner~ at the moment at which the action was emitted from the ~Item~. We have access to this, so we can reduce the state with the second parameter, the action which the ~Item~ sent, into a new state. We then return that new state with the ~core/return~ function (using the ~:state~ keyword). This lets the component know that it needs to update its state, therefore render itself again. In the parameter definition of our function (line 11) the state is destructured into the outer state, which was implicitly passed to our ~runner~ and the state of the ~runner~ itself (here named ~st~). In line 12 we have a check to confirm the ~Item~ sent us an action that is a ~Commit~. If it isn't a ~Commit~, the action will propagate further upwards because of the ~core/return~ call in line 14. We also check if our current state holds a ~Bind~, because only if we have a ~Bind~, can we call a ~continuation~. In line 13 we then call the ~continuation~ of our ~Bind~ with the payload of the ~Commit~ and return it as state of our ~runner~.
 *** Lens
-The previously mentioned lens in line 9 is needed to stop leaking the bookkeeping for our tail call optimization, downards into our ~Item~.
+The previously mentioned lens in line 9 is needed to stop leaking the bookkeeping for our tail call optimization, downwards into our ~Item~.
 Lenses are a popular mechanism in functional programming to, on one side, restrict the available information, while allowing changes from the restricted side to change the whole, as well.
 It does this by providing two functions: Yanker and shover. The yanker grants access to parts of the whole. If parts of that whole are changed, the shover is called to marry that part again with the whole, so the update can trickle upwards again.
-Our lens is a "first lense", because it restricts access to anything but the ~first~ element. This is relevant because when state is passed around in reacl-c, it usually comes in the form of a list where the ~first~ element is the outter and the second element is the inner state.
+Our lens is a "first lense", because it restricts access to anything but the ~first~ element. This is relevant because when state is passed around in reacl-c, it usually comes in the form of a list where the ~first~ element is the outer and the second element is the inner state.
 The code for the ~first-lens~ can be found in listing 22.
 #+CAPTION: Elements of the list are destructured into ~first~ and ~rest~, where on the yanker side ~rest~ is discarded and on the shover side ~first~ is ignored in favor of ~small~. ~small~ represents the previously passed ~first~, which now has been updated by the restricted side.
 #+begin_src clojure
@@ -582,7 +582,7 @@ Previously we discussed what TCO is and why we need it. Now it is time to take a
 As mentioned earlier ClojureScript already provides TCO for functions with the ~loop~ and ~recur~ macros. We however need recursion on our ~Progs~, because of that we cannot simply use ~loop~ and ~recur~. This is not a problem though, as we can use the previously explained concept of trampolines to make our own TCO.
 The basic idea is to save the ~Bind~ in our state and update the state each time a ~Commit~ comes in, with the result of the ~continuation~ of our ~Bind~. Updating the state will trigger another render, where the current state is the next step.
 Lets examine it in more detail:
-In our ~runner~ we define the ~Bind~ that was passed into the function (named just ~b~) as local state using the ~core/local-state~ function. This is the first part of our trampoline. Next we call ~core/dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 6 to ~outter~ (which is immediately discarded with ~\_~) and ~inner~ (which is not discarded). This is clever, as we now have access to the state of our ~runner~ component, through the parameter of the function. We need to access that state, because we want to both display the ~Bind~ that it holds and wait for it to ~emit~ a ~Commit~ (using the ~handle-action~ function).
+In our ~runner~ we define the ~Bind~ that was passed into the function (named just ~b~) as local state using the ~core/local-state~ function. This is the first part of our trampoline. Next we call ~core/dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 6 to ~outer~ (which is immediately discarded with ~\_~) and ~inner~ (which is not discarded). This is clever, as we now have access to the state of our ~runner~ component, through the parameter of the function. We need to access that state, because we want to both display the ~Bind~ that it holds and wait for it to ~emit~ a ~Commit~ (using the ~handle-action~ function).
 Now, in line 11, we define the function that will be called once an action is emitted. Like mentioned earlier, if the action is a ~Commit~, we execute the code in line 13. Here we set our state to the result of the ~continuation~ of the ~Bind~ of our ~inner~ state, by calling ~core/return~ with the ~:state~ keyword. With that we complete our trampoline. Because we set our state, the component will be rendered again, this time with the updated state, which is the next step in our sequential composition, because it is the result of the ~continuation~ of our ~Bind~.
 ** show
 To display our sequential composition we can use the ~runner~. If however we just want to display one step (indefinitely), we can use ~show~. This is a simple helper function that is used inside of the ~runner~ to display the ~Bind~. At its core it has a ~cond~ call, which allows us to react to specific conditions. This is necessary, because if we get an ~Item~, we can just display it. If however we get a ~Prog~, we need to unwrap the ~Item~ from it. Furthermore, if we get a ~Bind~, we first need to get the ~Prog~ inside of it, before we can unwrap it. Lastly, to make usage easier, if anything else is passed, we display an empty ~fragment~, which is equivalent to nothing. Getting passed neither ~Prog~ or ~Bind~ is the case after finishing the last ~Bind~. See listing 23 for the entire code of the ~show~ function.
@@ -690,7 +690,7 @@ The only necessary change inside of our components is to emit a ~Commit~. See li
     (core/local-state
      {:name "" :email ""}
      (core/dynamic
-      (fn [[outter inner]]
+      (fn [[outer inner]]
 	;; input field code ...
 	(dom/button
 	 {:onclick (fn [state action] (core/return :action (bind/make-commit inner)))}
