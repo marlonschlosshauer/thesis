@@ -1,5 +1,5 @@
 #+TITLE: Composition of UI elements in reacl-c using monads
-#+AUTHOR: Marlon Schlosshauer, Applied Computer Science, Hochschule Offenburg
+#+AUTHOR: Marlon Schlosshauer, Applied Computer Science, University of Applied Sciences Offenburg
 #+LANGUAGE: english
 #+OPTIONS: \n:t
 #+OPTIONS: toc:nil
@@ -10,8 +10,10 @@
 
 #+BEGIN_CENTER
 #+LATEX: {\Huge Composition of UI elements in reacl-c using monads \par}
-#+LATEX: \vspace{2cm}
-#+LATEX: {\Large Marlon Schlosshauer, Applied Computer Science, Hochschule Offenburg \par}
+#+LATEX: \vspace{1cm}
+#+LATEX: {\Large Marlon Schlosshauer \par}
+#+LATEX: {\Large Applied Computer Science \par}
+#+LATEX: {\Large University of Applied Sciences Offenburg \par}
 #+END_CENTER
 
 #+LATEX: \vspace*{\fill}
