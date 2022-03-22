@@ -7,20 +7,39 @@
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
 
 #+LATEX: \newpage
-#+TOC: headlines
-#+LATEX: \newpage
 
 * Acknowledgment
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 I'd like to thank some of the many people that supported me while I was writing this thesis.
 First of all I'd like to thank my supervisor, Markus Schlegel, for not only providing many of the ideas found in this thesis, but also sharing his vast knowledge of function programming and reacl-c.
 I'd also like to thank the Active Group GmbH for making this thesis possible. I'm very thankful and happy that I got to explore such an interesting topic.
 Lastly I'd like to thank my professor, Prof. Dr. Stefan Wehr, for introducing me to the Active Group GmbH and also giving helpful answers to my questions.
 #+LATEX: \newpage
 * Abstract
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 As the need for digitalisation of workflows grows, so does the importance of the tools that we use to create them. The composition of UI elements has been a necessary tool in the process of creating UIs and is, as a result of that, well supported in modern frontend developments. We however propose that composition of UI elements can be split into parallel and sequential composition. The former is what we commonly understand when we talk about composition of UI elements: The ability to say which elements belong together on the screen, at the same time.
-The latter is a new kind of composition that allows us to express in which order those parallel compositions are shown. This is significant because workflows are made up of individual steps that have a predetermined order to them. However, the current support to build and mantain these kinds of structures, despite that importance, is poor.
+The latter is a different kind of composition that allows us to express in which order those parallel compositions are shown. This is significant because workflows are made up of individual steps that have a predetermined order to them. However, the current support to build and mantain these kinds of structures, despite that importance, is poor.
 In this thesis we will examine the difference between parallel and sequential composition, go into detail about why sequential composition is important, look at examples of current support for our new kind of composition (or lack thereof) and explore a developer friendly API for it.
 Furthermore, we show what real-c is and compare it to React, before implementing the previously proposed API in it. At the end we give examples of sequential composition using our implementation and discuss possible improvements.
+#+LATEX: \newpage
+* Zusammenfassung
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+Mit wachsendem Bedarf an Digitalisierung von Arbeitsläufen steigt auch die Bedeutung der Werkzeuge, welche wir für die Entwicklung dieser verwenden.
+Die Komposition von UI-Elementen ist ein notwendiges Werkzeug bei der Erstellung von UIs, weswegen es in modernen Frontend Frameworks wie React und Angular auch gut unterstützt ist. Wir schlagen jedoch vor, dass die Komposition von UI-Elementen in eine parallele und sequenzielle Komposition unterteilt werden kann. Ersteres ist, was wir allgemein unter Komposition von UI-Elementen verstehen: Die Fähigkeit auszudrücken, welche Elemente gleichzeitig (parallel) auf dem Bildschirm angezeigt werden.
+Letzteres ist eine andere Art der Komposition, welche es uns ermöglicht, die Reihenfolge der zu anzeigenden (parallelen) Kompositionen zu bestimmen. Dies ist wichtig, da Arbeitsabläufe aus einzelnen Schritten bestehen, die eine genaue Reihenfolge besitzen. Allerdings ist die derzeitige Unterstützung für den Aufbau und die Weiterentwicklung dieser Art von Struktur trotz ihrer Bedeutung gering.
+In dieser Bachelorarbeit werden wir die Unterschiede zwischen paralleler und sequenzieller Komposition vorstellen, die Wichtigkeit von sequenzieller Komposition veranschaulichen, sehen wie momentan diese Art von Komposition implementiert werden kann und eine entwicklerfreundliche API dafür entwerfen.
+Darüber hinaus zeigen wir, was reacl-c ist und vergleichen es mit React, bevor wir die zuvor entworfene API darin implementieren. Am Ende geben wir Beispiele für sequenzielle Komposition in unser entwickelten API und sprechen über mögliche Verbesserungen.
+
+#+LATEX: \newpage
+#+TOC: headlines
+#+LATEX: \newpage
+
 * Motivation
 Components are an important tool in modern frontend development. In traditional frameworks we can define something as a component to reuse it multiple times in our applications, encapsulate some style with some functionality or collect multiple elements into a single component. To be more precise, we can compose things in parallel because we can group elements into something that is to work together. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
 
