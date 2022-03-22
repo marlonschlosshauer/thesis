@@ -5,7 +5,33 @@
 #+OPTIONS: toc:nil
 #+OPTIONS: broken-links:auto
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
+#+OPTIONS: author:nil date:nil title:nil
+#+LATEX: \begin{titlepage}
 
+#+BEGIN_CENTER
+#+LATEX: {\Huge Composition of UI elements in reacl-c using monads \par}
+#+LATEX: \vspace{2cm}
+#+LATEX: {\Large Marlon Schlosshauer, Applied Computer Science, Hochschule Offenburg \par}
+#+END_CENTER
+
+#+LATEX: \vspace*{\fill}
+#+BEGIN_CENTER
+
+
+Bachelorthesis
+
+September 1st, 2021 - April 1st, 2022
+
+Professor: Prof. Dr. Stefan Wehr
+Supervisor: Markus Schlegel, Active Group GmbH
+
+#+END_CENTER
+
+#+LATEX: \vspace*{\fill}
+#+ATTR_LATEX: :width 150px
+[[./images/hs-og-logo.png]]
+
+#+LATEX: \end{titlepage}
 #+LATEX: \newpage
 
 * Acknowledgment
