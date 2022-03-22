@@ -19,13 +19,12 @@
 #+LATEX: \vspace*{\fill}
 #+BEGIN_CENTER
 
+#+LATEX: {\Large Bachelorthesis \par}
+#+LATEX: {\Large October 1st, 2021 - April 1st, 2022 \par}
+#+LATEX: \vspace*{\fill}
 
-Bachelorthesis
-
-September 1st, 2021 - April 1st, 2022
-
-Professor: Prof. Dr. Stefan Wehr
-Supervisor: Markus Schlegel, Active Group GmbH
+#+LATEX: {\Large Professor: Prof. Dr. Stefan Wehr \par}
+#+LATEX: {\Large Supervisor: Markus Schlegel, Active Group GmbH \par}
 
 #+END_CENTER
 
