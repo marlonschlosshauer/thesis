@@ -4,7 +4,16 @@
 #+OPTIONS: \n:t
 #+OPTIONS: toc:nil
 #+OPTIONS: broken-links:auto
+
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
+#+LATEX_HEADER: \usepackage{adjustbox}
+#+LATEX_HEADER: \usepackage{float}
+#+LATEX_HEADER: \restylefloat{table}
+#+LATEX_HEADER: \usepackage{tabularx}
+#+LATEX_HEADER: \usepackage{changepage}
+
+#+BIND: org-latex-caption-above nil
+
 #+OPTIONS: author:nil date:nil title:nil
 #+LATEX: \begin{titlepage}
 
@@ -144,7 +153,7 @@ Another important feature of React is that the developer must explicitly declare
 
 React is also a popular basis for other frameworks like Preact. It is especially popular for ClojureScript based frameworks. Noteable examples are om, reagent, rum and as mentioned earlier, reacl-c.
 ** What is reacl-c
-In this chapter we will explain reacl-c's most important features as well as implementing the register example previously shown in figure 2.
+In this chapter we will talk about the benefits of reacl-c, give an overview of some of its API and explain the most important features. We will also implement parts of the previously in figure 2 shown registration example.
 
 Reacl-c [2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier, by giving developers lots of tools to both manage components and their state.
 Like other ClojureScript frameworks, reacl-c wraps the previous introduced React, to best take advantage of Clojure's immutable data structures. Like React, reacl-c allows the definition of components, called ~Items~. These ~Items~ can have child ~Items~, thus forming a tree, just like components do in React.
@@ -173,60 +182,81 @@ To make components even more composable the parent can not just control the resu
 
 In React often another package like Redux is used to fix the problem of having to pass-down functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composability of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state, first. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables us to wrap a component with an action handler and placing it infinitely in our app without worry, as the component won't effect anything outside of that handler (as long as the handler is setup correctly).
 
-Having now understood what makes reacl-c special, it is time to learn how to use the basic building blocks that reacl-c offers. Let's begin by talking about how ~Items~ can be made.
+Before we dive deeper into the unique features that reacl-c has to offer, we'd like to give an overview of the most important functions. Take a look at table 1 to see a brief overview of some of the functions which we will use to build our components. We will explain them further in the comming chapters.
+
+| Name            | Signature                            | Description                                                                                              |
+| ~local-state~   | ~x -> Item -> Item~                  | Makes the first parameter available as inner state inside of the second parameter.                       |
+| ~dynamic~       | ~([o, i]) => Item -> Item~           | Gives access to (outer & inner) state inside of the function. The function needs to return an ~Item~.    |
+| ~handle-action~ | ~Item, ([o, i]) => Returned -> Item~ | Catches ~actions~ emitted by the first parameter. Calls the second parameter when an ~action~ is caught. |
+| ~return~        | ~:action -> x -> Returned~           | Returns something that can be consumed to either trigger an emit of an action or a state change.         |
+| ~focus~         | ~Lens -> Item -> Item~               | Restrict state of the second parameter to only what the first parameter (lens) allows.                   |
+| ~div~           | ~[Item] -> Item~                     | Bundle multiple ~Items~ into one ~Item~ (just like a ~<div>~ would do in HTML).                          |
+
+Take note of how many things take something and an ~Item~ as a parameter - and return an ~Item~ again. This is what allows us to build concise and powerful components that we can also easily compose further.
+
+Having understood the most important functions, we're now ready to learn how to use these basic building blocks. Let's begin by talking about how we can use and define ~Items~.
 *** How an Item is made
 Reacl-c is made up of ~Items~ and functions which operate on these ~Items~. Much like in React, we can use these ~Items~ to build our components.
 The ~dom~ namespace offers all the necessary HTML elements in the form of ~Items~ (e.g ~dom/div~, ~dom/button~). We are however not limited to HTML or even visible elements. It is also possible to place empty ~Items~ to cause effects (e.g HTTP request).
 As an example, to create a headline all that is needed is ~(dom/h2 "Text")~. To make more complicated ~Items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple ~Items~. See listing 3 for an example.
-To make an ~item~ reacl-c provides a namespace called ~dom~ that contains all the necessary DOM HTML components already defined as ~items~. As an example, all that is needed to create a headline is ~(dom/h2 "Headline")~. To make more complicated ~items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple items. See listing 3 for an example.
-#+CAPTION: Showcasing composition of multiple ~items~ into one by using a ~div~.
+#+CAPTION: Showcasing composition of multiple ~items~ into one by using a ~div~, by building the a static version of the first step shown in figure 2.
 #+begin_src clojure -n 1
   (dom/div
-   (dom/h2 "Hello")
-   (dom/p {:class "subtitle"} "This is some text")
+   (dom/img {:src "./img/logo.png"})
+   (dom/h2 "Login information")
+   (dom/input "email")
+   (dom/input "password")
    (dom/button "Subscribe"))
 #+end_src
 
-There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each later.
+Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also receive a ClojureScript ~map~ as their second argument. With this ~map~ things like CSS classes and inline-style can be applied. If the ~Item~ is interactive, like Buttons and Inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback (that can change state).
 
-Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also receive a ClojureScript ~map~ as their second argument. With this ~map~ things like CSS classes and inline-style can be applied. If the ~Item~ is interactive, like Buttons and Inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback.
-*** Emitting and handling actions
-Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this is a crucial feature to make items composable.
-To emit an action the child needs to call ~core/return~ with the ~:action~ keyword and the desired payload. The action will travel upwards until it is caught by a ~core/handle-action~. The action handler function takes two arguments. First an ~item~ to wrap and receive actions from. Second, a function that defines what do to when it receives an action.
-#+CAPTION: The action emitted by the buzzer ~item~ is caught in the parent ~item~ using ~core/handle-action~.
-#+begin_src clojure
-  (def buzzer
-    (dom/dom
-     (dom/h3 "Press buzzer to notify parent")
-     (dom/button {:onClick (fn [] (c/return :action true))} "Buzzer")))
+There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~Item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each soon. A working example that will be referenced further can be seen in listing 4.
 
-  (def parent
-    (core/local-state
-     {:pressed? false}
-     (core/handle-action
+#+CAPTION: A complete example of the first step shown in figure 2. Previously defined in listing 3 but without state or or any form of interactivity. Now thanks to ~core/local-state~, ~core/dynamic~ and ~core/return~ the ~Item~ has state that is manipulated by user input.
+#+begin_src clojure -n 1
+  (core/defn-item login-information []
+    (dom/div
+     (dom/h2 "Login information")
+     (core/local-state
+      {:email ""
+       :password ""}
       (core/dynamic
        (fn [[outer inner]]
 	 (dom/div
-	  (dom/p (str "The button has" (if (:pressed? inner) "been pressed" "not been pressed")))
-	  buzzer)))
-      (fn [ac msg]
-	(core/return :state {:pressed? msg})))))
+	  (dom/input
+	   {:onChange
+	    (fn [e]
+	      (core/return :state [outer (assoc inner :email (.e target value))]))}
+	   (:email inner))
+	  (dom/input
+	   {:onChange
+	    (fn [e]
+	      (core/return :state [outer (assoc inner :password (.e target value))]))}
+	   (:password inner))
+	  (dom/button {:onClick (core/return :action inner)} "Confirm")))))))
 #+end_src
-*** How state is managed
-Like with React, handling state is very important in reacl-c. The framework gives the developer many ways to tackle this problem. Much like with React, developers can easily make out if a component is using or changing state, which makes working with state easier.
+
+Let's take a closer look at how we can work with state in reacl-c. Afterwards we will examining how we can make our components interactive.
+*** State Management in reacl-c
+Like with React, handling state is very important in reacl-c. Thankfully the framework gives the developer many ways to tackle this problem. Also like React, developers can easily make out if a component is using or changing state, which makes working with state easier.
 
 State in reacl-c can be shared in different, more complex, ways.
-Firstly, while a component might have state, it is not accessible to the developer until they use the ~core/dynamic~ function or ~core/with-local-state-as~ macro. This has the benefit of instantly marking a component as one that needs and works with state.
+Firstly, while a component might have state, it is not accessible to the developer until they use the ~core/dynamic~ function or ~core/with-state-as~ macro. This has the benefit of instantly marking a component as one that needs and works with state. We will take a look at what they do shortly.
+
 Secondly, like mentioned earlier, state is split into two categories:
-- Inner state, which is defined inside of the component by using either ~core/with-state-as~, ~core/local-state~ or ~core/isolate-state~.
+- Inner state, which is defined inside of the component by using either ~core/local-state~ (see listing 4, line 4-6) or ~core/isolate-state~.
 - Outer state, or state that is passed down from the parent component.
 That passing down of outer state happens implicitly. That means we don't need to tell the parent to share its state with its children.
-To understand this we need to look at an example. If we write ~(inc (+ 3 4))~ we specify that the result of ~(+ 3 4)~ should be passed to ~(inc ...)~, but we don't do so in a verbose way. Rather it is implicitly done because of the structure of the code.
+
+This can at first seem strange, but the intention becomes more clear by looking at the following example: If we write ~(inc (+ 3 4))~ we specify that the result of ~(+ 3 4)~ should be passed to ~(inc ...)~, but we don't do so in a verbose way. Rather it is implicitly done because of the structure of the code.
 We know that having functions nested inside of each other causes this kind of passing of return values. ClojureScript developers are already familiar with this, as it is arguably the most important feature of the language.
 
-Let's apply similar thinking to state and ~Items~ in reacl-c. Take a look at the following: ~(div (core/local-state {:text "Text"} input-text))~. We don't have to explicitly say that ~input-text~ should inherit the state (e.g ~{:text "Text"}~) from the parent. The structure indicates this relationship.
-If we take our example further it becomes clear why our two examples are similar. If ~input-text~ has access to ~:text~, it can then change it. If it does, it is like ~input-text~ returns the result of some computation to the parent (because the state belongs to the parent), where it is then used for further computation.
-After all, we placed ~input-text~ in the parent for a reason. In this case to return something to us. Just how we placed ~(+ 3 4)~ inside of the ~(inc ...)~ to return something, as well.
+Let's apply similar thinking to state and ~Items~ in reacl-c. Take a look at the following: ~(div (core/local-state {:email ""} (login-information)))~.
+~core/local-state~ adds the first argumetn as (inner) state to the second argument (the ~Item~). We don't have to explicitly say that ~(login-information)~ should inherit the state (e.g ~{:email ""}~) from the parent. The structure indicates this relationship.
+
+If we take our example further it becomes clear why our two examples are similar. If ~(login-information)~ has access to ~:email~, it can then change it. If it does, it is like ~login-information~ returns the result of some computation to the parent (because the state belongs to the parent), where it is then used for further computation.
+After all, we placed ~login-information~ in the parent for a reason. In this case to return something to us. Just how we placed ~(+ 3 4)~ inside of the ~(inc ...)~ to return something, as well.
 In both cases we didn't specify that relationship in a verbose way (e.g like with a ~let~), but rather it was implicitly known to the developer by the relation.
 It's worth noting that the parent retains full control of what state is shared, as it can use lenses (with the ~core/focus~ function) to block some of its state from being shared with its children.
 
@@ -234,19 +264,34 @@ It does not only lead to less code that needs to be written (because of the abse
 
 If state inside of the parent isn't in a format that is useful to the child, it can be further composed by wrapping it in another component that adapts the parent state by transforming it into the correct format. This is again possible because state is also implicitly passed into the adapter and from the adapter into the actual child. We will explore this mechanism in-depth later.
 
-While ~core/local-state~ and ~core/isolate-state~ allows us to add additional state to our component, the ~core/dynamic~ function is what gives us access to the state of the component. A combination of either one of the previous two with the ~core/dynamic~ function are often used together. The result has both added state and received access to it. See listing 5 for an example.
-#+CAPTION: Using ~core/local-state~ to create an empty string as inner state, which is being changed by the ~onChange~ callback of the input field.
-#+begin_src clojure
-  (core/defn-item name-input [placeholder]
+Let's apply our knowledge of outer and inner state and take a closer look at how we can use the provided API, by taking listing 4 as an example.
+We can see the previously mentioned ~core/local-state~ (line 4-6) to add a map with two fields as inner state. The second argument is an ~Item~ which the inner state will be applied to. But, just ~core/local-state~ isn't enough, as we don't have a keyword to access our inner state.
+To access that newly added inner state, we need to use the ~core/dynamic~ function. The function itself takes a single parameter: Another function, that now must return an ~Item~. That function gets the surrounding state as an argument (line 8), therefor anything inside of it has at least read access to the state. In listing 4 the parameter of that function has been destructured into outer and inner state (line 8). We can see that the function will return a ~core/div~ and that the provided inner state is used in lines 13-14 & 18-19.
+
+But we can do more than just access state. With the ~core/return~ function are able to change state (and send actions, see next chapter). We can see usage of ~core/return~ in listing 4 at lines 13, 18 & 20. The function takes two arguments. A keyword and a value. If the ~:state~ keyword has been supplied (like in line 13, 18), we will set the state to the second argument, the value. This will change both inner and the inheritet outer state. In line 13 we can see that the ~:email~ keyword in the inner state is to be updated to the value of the event while the outer state is kept the same. Outer and inner state are usually supplied through a single list, which is why we also enter a list as our value which the state will be set to.
+
+Now we know how to both access and update state. This is an important feature that reacl-c provides. But it isn't the only important feature. Next we're going to look at how components can interact with each other by using ~core/handle-actions~ and ~core/return~.
+*** Emitting and handling actions
+Both ~core/handle-actions~ and ~core/return~ work by using actions. These Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this is a crucial feature to make ~Items~ composable.
+To emit an action the child needs to call ~core/return~ with the ~:action~ keyword and the desired payload.
+This can be seen in listing 4 in line 20, as a result of user input (button pressed). The ~core/return~ function can also be seen using the ~:state~ keyword in line 13 and 18, to change the state of the component. More on that soon.
+The emitted action from the button press will then travel upwards until it is caught by a ~core/handle-action~. Like shown in table 1, ~core/handle-action~ takes two parameters, an ~Item~ which to wrap and a ~function~, which will be called once an action has been caught.
+
+Take a look at listing 5 to see our previously in listing 4 defined ~login-information~ component being wrapped by a ~core/handle-action~. First we define some local state (line 2-3) to keep track if the button has been pressed. Then inside of that local state, we call ~core/handle-action~ (line 4-11) and give it both a an ~Item~ (in the form of a ~core/dynamic~) and a function (line 10-11). In line 5 we call ~core/dynamic~,  which takes a function that returns an ~Item~. The function gets the state of the component as a parameter, therefor has now at least read access to the state. We destructure the
+#+CAPTION: Wrapping ~login-information~ with ~core/handle-action~ to catch actions and change local state accordingly.
+#+begin_src clojure -n 1
+  (def registration
     (core/local-state
-     ""
-     (core/dynamic
-      (dom/input
-       {:placeholder placeholder
-	:value inner
-	:onChange (fn [[outer inner] e] (core/return :state [outer (.. e -target -value)]))}))))
+     {:pressed? false}
+     (core/handle-action
+      (core/dynamic
+       (fn [[_ inner]]
+	 (if (:pressed? inner)
+	   (dom/h2 "Button pressed, show next step!")
+	   (login-information))))
+      (fn [[outer inner] ac]
+	(core/return :state [outer {:pressed? ac}])))))
 #+end_src
-To change state the ~core/return~ function is used. This time with the ~:state~ keyword, instead of ~:action~. The given payload will be the new state of the component.
 ** What is a monad
 Monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. This is helpful, because we can abstract away difficult logic, so that the developer can continue working with our complex types, as if they are primitive types.
 There are different kinds of Monads that serve different purposes. One use case for some monads is to allow us to chain operations on often abstracted away types. This is done to transform data or control the flow of the program or both.
