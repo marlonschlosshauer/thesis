@@ -98,7 +98,7 @@ There are more issues. The inability to easily test just the order of the compon
 Our applications already are a collection of parallel compositions. If we add the ability to compose sequentially, we gain another tool to control our programs. Not only would our code be more expressive and more concise, bugs could also be reduced because the resulting systems represent more truthfully what they set out to do, thanks to the provided API of the framework. Most importantly, we could build workflows out of smaller flows or other workflows entirely and share these across our applications, just like how do with our UI elements. Given the lack of support and the possible applications it is of high interest to find a way to compose sequentially, easier.
 
 Before we talk about our implementation of sequential composition we will first introduce reacl-c, the framework in which we implemented it. Then we will look at the current way of implementing sequence like behavior, before exploring a possible API for sequential composition. Afterwards we will showcase how we implemented our API in reacl-c. At the end we will both give examples of our API and discuss potential improvements.
-Knowledge of composition of UI elements in modern frameworks like React or Angular is helpful but not required. Neither is knowledge of reacl-c or its language, ClojureScript.
+Knowledge of composition of UI elements in modern frameworks like React or Angular is helpful but not required. Neither is knowledge of reacl-c. Some basic knowledge of reacl-c's language, ClojureScript (or Clojure) is required (basic structure, variable definitions, let usage).
 * Explaining Frameworks And Tools
 To understand why composition for sequences is important we first need to know where and with what they work with. For this, we will first take a quick look at React, before diving into reacl-c. Aftewards we will learn what monads are and why we want to use them for our sequencial composition.
 ** What is React
@@ -144,7 +144,10 @@ Another important feature of React is that the developer must explicitly declare
 
 React is also a popular basis for other frameworks like Preact. It is especially popular for ClojureScript based frameworks. Noteable examples are om, reagent, rum and as mentioned earlier, reacl-c.
 ** What is reacl-c
-Reacl-c [2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier, by giving the developers a lot of tools to both manage components and their state. Like other ClojureScript frameworks, reacl-c wraps the previous introduced React, to best take advantage of Clojure's immutable data structures. Like React, reacl-c allows the definition of components, called ~Items~. These ~Items~ can have child ~Items~, thus forming a tree, just like components do in React.
+In this chapter we will explain reacl-c's most important features as well as implementing the register example previously shown in figure 2.
+
+Reacl-c [2] is a UI framework for ClojureScript that is designed to make the composition of UI components easier, by giving developers lots of tools to both manage components and their state.
+Like other ClojureScript frameworks, reacl-c wraps the previous introduced React, to best take advantage of Clojure's immutable data structures. Like React, reacl-c allows the definition of components, called ~Items~. These ~Items~ can have child ~Items~, thus forming a tree, just like components do in React.
 
 To make composing of ~Items~ easier reacl-c takes a different approach to state than React. There are two types of state. Local state, which is defined inside of the component and outer state, which is implicitly passed down from the parent to the child. The later has the unique feature of putting the emphasis on the parent. We will explore why this is important shortly.
 
@@ -155,31 +158,35 @@ Instead of having the parent pass down a function to, e.g manipulate state, the 
 #+ATTR_LATEX: :width 350px
 [[./images/emit-vs-callback.png]]
 
-As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon.
-
-The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system[x]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.
-#+CAPTION: We create an item called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to it's parent.
-#+begin_src clojure
+As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon. See listing 2 for an example of a button that works like that, in reacl-c.
+#+CAPTION: We create an ~Item~ called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to its parent. Notice the lack of callback given to our ~abstract-button~ component. ~text~ is the only parameter given, yet our component will be able to communicate with a parent thanks to the action system.
+#+begin_src clojure -n 1
   (defn-item abstract-button [text]
     (dom/button {:onClick (fn [] (core/return :action :pressed))} text))
 #+end_src
+
+The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system[16]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.
+
 With this style of communication, only the parent needs to know the child. The developer does not need to tell the child where to send the action. Reacl-c takes care of that work for us.
 
 To make components even more composable the parent can not just control the result, it can also control which state is given to its children in the first place. The parent can therefor handle the child items like they're pure functions, that together with the parent compose to a new item.
 
-In React often another package like Redux is used to fix the problem of having to pass-down functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composability of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state, first. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables us to wrap a component with an action handler and placing it infinitely in the app without worry, as the component won't effect anything outside of that handler.
+In React often another package like Redux is used to fix the problem of having to pass-down functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composability of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state, first. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables us to wrap a component with an action handler and placing it infinitely in our app without worry, as the component won't effect anything outside of that handler (as long as the handler is setup correctly).
+
+Having now understood what makes reacl-c special, it is time to learn how to use the basic building blocks that reacl-c offers. Let's begin by talking about how ~Items~ can be made.
 *** How an Item is made
 Reacl-c is made up of ~Items~ and functions which operate on these ~Items~. Much like in React, we can use these ~Items~ to build our components.
 The ~dom~ namespace offers all the necessary HTML elements in the form of ~Items~ (e.g ~dom/div~, ~dom/button~). We are however not limited to HTML or even visible elements. It is also possible to place empty ~Items~ to cause effects (e.g HTTP request).
 As an example, to create a headline all that is needed is ~(dom/h2 "Text")~. To make more complicated ~Items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple ~Items~. See listing 3 for an example.
 To make an ~item~ reacl-c provides a namespace called ~dom~ that contains all the necessary DOM HTML components already defined as ~items~. As an example, all that is needed to create a headline is ~(dom/h2 "Headline")~. To make more complicated ~items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple items. See listing 3 for an example.
 #+CAPTION: Showcasing composition of multiple ~items~ into one by using a ~div~.
-#+begin_src clojure
+#+begin_src clojure -n 1
   (dom/div
    (dom/h2 "Hello")
    (dom/p {:class "subtitle"} "This is some text")
    (dom/button "Subscribe"))
 #+end_src
+
 There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each later.
 
 Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also receive a ClojureScript ~map~ as their second argument. With this ~map~ things like CSS classes and inline-style can be applied. If the ~Item~ is interactive, like Buttons and Inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback.
@@ -305,14 +312,14 @@ If we want to have more than a binary choice however, we need to use a switch st
 A simple implementation of a component which shows multiple components in succession can be seen in listing 9. ~personalInfo~, ~verificationCode~, ~showAccountInfo~ are components that will be shown one after another. The ~step~ variable stores which component should currently be shown. The ~value~ variable stores the result of the last step. In order to progress, a callback named ~cb~ needs to be passed to each component, as the point at which the child components are finished can't be determined from the outside (in React). The steps are arranged in sequential order, but in this implementation it is also possible to move non-linearly or even revisit components multiple times. This does mean the callback function would need to map from where which component is being routed. This is examined in detail in listing 10.
 Another property to keep in mind is that the components need to be able to at least take a callback function for when they're done. This means components might need to be changed to fit our new logic.
 #+CAPTION: Enabling named steps and non-linear visiting of steps by using a second switch case inside of the callback function.
-#+begin_src clojure
-  (defn login []
-    (handle-action
-     (dynamic
+#+begin_src clojure -n 1
+  (defn register []
+    (c/handle-action
+     (c/dynamic
       (fn [[step val]]
 	(case
 	    :personal (personal-info val)
-	    :verification (verification-code val)
+	    :verification (verification-code (:email val))
 	    :show (show-account-info val))))
      (fn [[step _] ac]
        (return
@@ -817,5 +824,7 @@ We're pleased with the implementation and are excited to find out what we can bu
 - [13] https://2ality.com/2015/06/tail-call-optimization.html
 - [14] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
 - [15] https://github.com/khinsen/monads-in-clojure
+- [16] Effect Systems in Haskell (KCSS 2021) - Page 85, Background
+
 
 
