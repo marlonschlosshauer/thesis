@@ -335,90 +335,79 @@ The required functions also are a great fit for our API. With the ~>>=~ operatio
 We will take advantage of reacl-c's great action system, to keep necessary wiring of steps to a minimum. As a result we will have to wait for actions to be emitteed. Because of that (and the inherint domain of the problem) we need to take asynchronisty into account. That means our sequential composition needs a specially labeled environment in which that it can be executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 The next chapter will talk about the current and possible future developer experience for our sequential composition. No doubt will monads allow us to create a better, frictionless API to improve how developers can compose sequentially.
 * TODO Behavior
+Having had both an introduction to sequential composition and some of the modern frameworks, that we can use to build our applications, we now can take a look at how sequential composition is done. Or rather, how it isn't. First we will see different approaches to building sequences (structures with multiple steps) and then we will explore how we might want to compose sequences.
 ** How we build sequences now
-Composition is supported in both reacl-c and other frontend frameworks like Angular or React. However, this is limited to creating a new component that just displays all composed components at the same time. In other words, it is only possible to compose in parallel. To create a component which initially displays some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps.
+Composition is supported in both reacl-c and other frontend frameworks like Angular or React. However, this is limited to creating a new component that just displays all composed components at the same time. In other words, it is only possible to compose in parallel.
+Currently to create a component which initially displays some component and later changes to display another, after a certain event has been reached, the logic doing the change from one to the other component needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps. While we will showcase reacl-c, we want to mention that any shortcomings mentioned aren't exclusive to reacl-c, rather it inherits them from React. Other frameworks like Angular suffer from the same issues, also.
 *** If statement
-While not offering composability, a simple ~if~ statement is highly effective for binary choices when it comes to displaying components. An example would be to guard business logic like a dashboard against not logged in users. The ~if~ checks if the user is logged in. If they aren't, the login page (instead of the dashboard) is shown. Otherwise the actual component is displayed.
-#+CAPTION: Example of a minimal setup for a guard statement.
-#+begin_src javascript
-  const app = (isLoggedIn) => {
-      return (isLoggedIn)
-	  ? <login/>
-	  : <dashboard/>
-  }
-#+end_src
-*** Switch statement
-If we want to have more than a binary choice however, we need to use a switch statement. We can use a switch statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occurred, the inner component changes the state to allow for the next component to be rendered.
-#+CAPTION: Possible implementation for a component that shows multiple steps, using a switch statement in combination with state, that is changed by a callback which is passed to the individual steps.
-#+begin_src javascript
-  const login = () => {
-      const [step, setStep] = useState(0);
-      const [value, setValue] = useState();
+The most trivial way to switch between one of two steps is to use an ~if~ statement. While not offering composability, a the simple ~if~ statement is highly effective for binary choices. An example can be seen in listing 8, where we implement an guard for the second step shown in figure 2. The first step, ~login-information~ (defined in listing 4), is shown until it emits it's inner state.
 
-      const cb = x => {setStep(step+1); setValue(x)};
-
-      return switch(step) {
-	  case 0:
-	  return (<personalInfo value={value} cb={cb}/>) ;
-	  case 1:
-	  return (<verificationCode value={value} cb={cb}/>) ;
-	  case 2:
-	  return (<showAccountInfo value={value}/>) ;
-      }
-  }
-#+end_src
-A simple implementation of a component which shows multiple components in succession can be seen in listing 9. ~personalInfo~, ~verificationCode~, ~showAccountInfo~ are components that will be shown one after another. The ~step~ variable stores which component should currently be shown. The ~value~ variable stores the result of the last step. In order to progress, a callback named ~cb~ needs to be passed to each component, as the point at which the child components are finished can't be determined from the outside (in React). The steps are arranged in sequential order, but in this implementation it is also possible to move non-linearly or even revisit components multiple times. This does mean the callback function would need to map from where which component is being routed. This is examined in detail in listing 10.
-Another property to keep in mind is that the components need to be able to at least take a callback function for when they're done. This means components might need to be changed to fit our new logic.
-#+CAPTION: Enabling named steps and non-linear visiting of steps by using a second switch case inside of the callback function.
+#+CAPTION: An example of using an ~if~ to guard a step from being shown before another is done. This example combines the two steps previously shown in figure 2.
 #+begin_src clojure -n 1
-  (defn register []
-    (c/handle-action
-     (c/dynamic
-      (fn [[step val]]
-	(case
-	    :personal (personal-info val)
-	    :verification (verification-code (:email val))
-	    :show (show-account-info val))))
-     (fn [[step _] ac]
-       (return
-	:state
-	[(case step
-	   :personal :verification
-	   :verification (if (nil? ac) :verification :show)
-	   :show :show) ac]))))
+  (def login-info-and-verification-code
+    (core/local-state
+     {:email nil}
+     (core/handle-action
+      (core/dynamic
+       (fn [[_ inner]]
+	 (if (nil? (:email inner))
+	   (login-information)
+	   (verification-code (:email inner)))))
+      (fn [[outer inner] ac]
+	(c/return :state [outer (assoc inner :email (:email ac))])))))
 #+end_src
-Listing 10 shows the example from listing 9, but it is written in reacl-c and instead of using an increasing number to keep track of which step the component showing, a keyword is used which could be used to show components in a non-linear order or loop back to the initial component after visiting the final component, as well as showing a component multiple times (with different values each time). This however means a second switch statement is needed, to map the transitions from one component to another.
 
-This causes multiple issues. The most immediate is that it's more difficult to add more components, as two places need to be maintained to do so. It is also easy to lose track of which component will be shown next if a complex order is chosen, as no support is being provided by either the language or the framework. There is also no check if the pattern inside of our callback function is non-exhaustive.
-Importantly, this also cannot be further composed! Neither listing 9 nor listing 10 can be wrapped by themselves to further build up a sequence, as the inner component has currently no way to signal to the outer component that the next step is to be displayed.
-We solved this problem inside of the inner component by passing a callback down, to call us once the next step should be displayed.
+A construct like this has already been shown in listing 5, to showcase the handling of actions. Now the focus is on the ~if~ and how it can be used to give a binary choice of what is displayed. Like mentioned earlier, this way of managing steps is limiting. It is however also possible to use composition to enable more than just two steps, by using a component as the second step, that again contains an ~if~ structure like this one. And the second step of that ~if~ could again another ~if~ structure. While functioning, readability of the code suffers and keeping track of the entire sequence might be challenging. Also, gaining access to previous results (e.g the ~email~ from the first step) might require some further engineering. We will explore how this might look like soon.
+*** Switch statement
+The obvious choice, if we want more than a binary choice, is to use a ~switch~ statement. We can use a ~switch~ statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occurred, the inner component changes the state to allow for the next component to be rendered. We can see an example of this in listing 9. We can see the ~switch~ statement in lines 7-10. The current step and last returned value are saved in local state (lines 2-3) and and updated in the last line.
 
-We could preemptively add a callback to our implementation, which could be called once the component is done, in case we'd ever need it in the future. This does make our component sequentially composable, however adds even more code to our component. It also requires that we keep track of our steps at yet another place: The point which determines if the component is done (and the final callback should be called). See listing 11 for more.
-#+CAPTION: Enhancing the previous implementation by adding an ~onFinish~ callback to the composition itself. The ~cb~ function has been expanded to work with the new function.
-#+begin_src javascript
-  const login = (onFinish) => {
-      const stepCount = 3;
-      const [step, setStep] = useState(0);
-      const cb = x => {
-	  setValue(x);
-	  if (onFinish && step >= stepCount) {
-	      onFinish(x)
-	  } else {
-	      setStep(step+1);
-	  }
-      };
-
-      return switch(step) {
-	  case 0:
-	  return (<personalInfo value={value} cb={cb}/>) ;
-	  case 1:
-	  return (<verificationCode value={value} cb={cb}/>) ;
-	  case 2:
-	  return (<showAccountInfo value={value}/>) ;
-      }
-  }
+#+CAPTION: Using a ~switch~ statement (called ~cond~ in ClojureScript) we can react to state and show the step we want to display.
+#+begin_src clojure -n 1
+  (def register
+    (core/local-state
+     {:step 0 :last nil}
+     (core/handle-action
+      (core/dynamic
+       (fn [[_ inner]]
+	 (cond (:step inner)
+	       0 (login-information)
+	       1 (verification-code (:last inner))
+	       2 (personal-information))))
+      (fn [[outer inner] ac]
+	(c/return :state [outer (assoc inner :step (inc(:step inner)) :last ac)])))))
 #+end_src
-While meeting all functional requirements, the implementation provides poor useability. First, we need to write a lot of boilerplate, because we can't abstract away the switch statement as we need direct knowledge about it for our core functionality. Secondly, we need to be aware and handle edge-cases like not being provided a callback, yet having child components continue to ask for a next step etc. Thirdly, nothing is stopping us from doing parallel work in our sequential composition. This means our sequential composition could be used to also sneak in parallel changes that could lead to unexpected behavior which isn't obvious from outside of the component.
+
+A neat feature of using a ~switch~ is that we can also work non-liniar by using something like a keyword instead of a number, as well as add another ~switch~. Listing 10 shows the same example of listing 9 but with the ability to move non-liniar. We could even visit some steps multiple times or loop infinitely. This however has the downside of requiring two ~switch~ statements, meaning any change needs to be implemented and tested in two places.
+
+#+CAPTION: Enhancindg listing 9 by adding a second ~switch~ statement to enable non-liniar movement.
+#+begin_src clojure -n 1
+  (def register
+    (core/local-state
+     {:step :login :last nil}
+     (core/handle-action
+      (core/dynamic
+       (fn [[_ inner]]
+	 (cond (:step inner)
+	       :login (login-information)
+	       :verification (verification-code (:last inner))
+	       :personal (personal-information))))
+      (fn [[outer inner] ac]
+	(c/return
+	 :state
+	 [outer
+	  (assoc inner :step (cond (:step inner)
+				   :login :verification
+				   :verification :personal
+				   :personal :login) :last ac)])))))
+#+end_src
+
+In both listing 9 and 10 we already see the advantage of the loose coupling we can achive thanks to actions in reacl-c. An implementation in React would require callbacks to handle the communication between steps and the parent component that holds them. This not only could lead to bugs, as the callback is incorrectly setup or handled, but also means every single step needs to be build to accomidate a callback.
+
+The intituive and straight forward way we can work with ~switch~ statements make it a popular choice for sequences like this. While reacl-c removes a lof of the edge cases by eliminating callbacks entirely, this structure still suffers from some shortcomings. While possible to make this composeable, it's neither immediatly obvious how nor without issues. It is once again worth mentioning, that make this composible would be much more work in React, as we have the advantage of actions here.
+
+To make it composible we could add behavior that emits the last result upwards one more time (in the last line of listing 9 & 10), so that we can catch it in a future ~switch~ structure, that could be wrapped around this (e.g ~register~ in listing 9 & 10). While this would lead to the same spread out code of the previously mentioned nested ~if~ structures, it does have the desired effect of making it composible, in the sence that we can add things infinitely.
+A big issue however would be managing previous results. Should we append each result to a key in the inner state, based on the steps name? We could and while functioning, it would lead to a bad developer experience, as they would need to trace through all compositions to get a sense of available results. Naming conflicts could also arrise without us ever noticing. Another objection could be the amount of boilerplate needed to procude such a structure. Having to write +16 lines of code for three simpmle steps will add up. A long sequence of 9 steps composed by 3 x 3 compositions would be more than 48 lines of code, for logic that defines an order of 9 steps.
+The overall impression is that with a ~switch~ structure simple things are easily done, but complex structures lead to problems.
 *** Callbacks
 We have already explored how we can use switch statements to obtain sequential composition. However we had to fall back to using callbacks to implement our logic. It is however also possible to skip the switch statement and just use callbacks. This has the benefit of relieving us of a lot of code and making it easier at a glance to understand what is happening.
 Listing 12 shows one possible way to implement a component that allows for sequential composability. Listing 13 shows how a developer can use that implementation to sequentially compose.
@@ -456,7 +445,7 @@ Lastly, besides the parameter in the signature, there is no way to distinguish f
 *** Conclusion
 Current methods either don't offer composability or they require a lot of boilerplate to be composable. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort.
 Support from modern frameworks could not save developers time but also deliver smooth integration with other features of the framework.
-** How we want to compose sequences
+** How we might want to build sequences
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Lets first look at some required features that our implementation should deliver before we talk about how a developer might interact with it.
 *** What it should do
 Our sequential composition needs to handle the synchronicity of the domain. That means only one value is to be shown to the user at a time. It's often the case that a step depends on information provided in the previous step. As such it is important for our composition to allow future steps to access the values returned by earlier steps.
