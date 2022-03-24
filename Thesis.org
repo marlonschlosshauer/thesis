@@ -105,7 +105,7 @@ Our applications already are a collection of parallel compositions. If we add th
 Before we talk about our implementation of sequential composition we will first introduce reacl-c, the framework in which we implemented it. Then we will look at the current way of implementing sequence like behavior, before exploring a possible API for sequential composition. Afterwards we will showcase how we implemented our API in reacl-c. At the end we will both give examples of our API and discuss potential improvements.
 Knowledge of composition of UI elements in modern frameworks like React or Angular is helpful but not required. Neither is knowledge of reacl-c. Some basic knowledge of reacl-c's language, ClojureScript (or Clojure) is required (basic structure, variable definitions, let usage).
 * Explaining Frameworks And Tools
-To understand why composition for sequences is important we first need to know where and with what they work with. For this, we will first take a quick look at React, before diving into reacl-c. Aftewards we will learn what monads are and why we want to use them for our sequencial composition.
+To best understand how our composition of sequences might work, we first need to know what the tool we're implementing it in, has to offer. Before we dive into that however, we will look at the roots of that framework - React - to better understand how we can use it. Afterwards we will learn what reacl-c is and what important features it has to offer, that enable our sequential composition. At the end of this chapter we will take a look at monads and why they're also important for sequential composition.
 ** What is React
 React[1] is a popular UI framework developed by Meta (formerly Facebook) and is written in JavaScript. It is important for us to understand, because the framework that we're going to work in, reacl-c, is based on React and as a result inherits a lot of its ideas.
 React, like many other modern JavaScript frameworks, is a Single-Page-Application (SPA), which means the entire application is loaded and available after visiting a single page. Instead of having each page defined in HTML, developers are able to define all pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browser's DOM.
@@ -147,7 +147,7 @@ An advantage of a SPA design is that commonly used components, like a header and
 
 Another important feature of React is that the developer must explicitly declare the state of a component. This is used to improve performance, as only components which are effected by a state change are rendered upon changes. Old components remain untouched. This also helps with identifying where state is and how it might be changed in the future.
 
-React is also a popular basis for other frameworks like Preact. It is especially popular for ClojureScript based frameworks. Noteable examples are om, reagent, rum and as mentioned earlier, reacl-c.
+React is also a popular basis for other frameworks like Preact. It is especially popular for ClojureScript based frameworks. Noteable examples are om, reagent, rum and as mentioned earlier, reacl-c. The next chapter will focus on the later, reacl-c, and showcase both syntax and important features.
 ** What is reacl-c
 In this chapter we will talk about the benefits of reacl-c, give an overview of some of its API and explain the most important features. We will also implement parts of the previously in figure 2 shown registration example.
 
@@ -291,28 +291,36 @@ Take a look at listing 5 to see our previously in listing 4 defined ~login-infor
       (fn [[outer _] ac]
 	(core/return :state [outer {:login-info ac}])))))
 #+end_src
+
+The ability to communicate between components, without having to explicitily build that connection, is something that will aid use massively when building our sequential composition. Much like with the parallel composition, we don't have to worry about wiring that might turn out to be messy.
 ** What is a monad
+We've previously looked at frameworks, to get a feeling for what paradigm we're in and which tools are available to us. We're now going to look at programming concept called monads and explain why it will be important for our sequential composition.
+
 Monads are often described as the programmable semicolon, because they allow us to describe what happens once an operation, that uses a monad, is done. This is helpful, because we can abstract away difficult logic, so that the developer can continue working with our complex types, as if they are primitive types.
 There are different kinds of Monads that serve different purposes. One use case for some monads is to allow us to chain operations on often abstracted away types. This is done to transform data or control the flow of the program or both.
-In order to allow for sequential composition we need to make use of both, with a heavy focus on controlling when and what is executed and shown.
+In order to allow for sequential composition we need to make use of both, with a heavy focus on controlling when and what is executed and shown. We're now going to show a small example of a monad, before talking about what needs to be done to be considered a monad. Afterwards we will end this chapter by talking about why monads are important for our sequential composition.
 *** The Maybe Monad
-A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something. Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[3]. See listing 6 for an example.
+A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something (e.g. ~Just 5~). Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[3]. See listing 6 for an example of multiple HTTP operations that all may fail. All we need to worry about is working with the actual type. The responsibility of working with the side-effects is taken away from us.
+
 #+CAPTION: Instead of having to manually check if each operation succeeded, thanks to the ~Maybe~ type and ~>>=~ operator, the chain will stop if any of the calls return a ~Nothing~.
 #+begin_src haskell
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
 #+end_src
 
-Monads are everywhere and most developers will have used them, even if they didn't know what a monad is. They help us write cleaner code that is easier to share and make API's easier to use, because they're composable.
+Monads are everywhere and most developers will have used them, even if they didn't know what a monad is at the time. They help us write cleaner code that is easier to share and make API's easier to use, because they're composable.
 Common cases for monads are IO operations, handling of errors, UI work and to establish a context of values.
-** Whats required to be a monad
-To be a monad the type needs to provide two functions and satisfy three rules[4]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function.
+*** What is required to be a monad
+To be of the monad typeclass the type needs to provide two functions and satisfy three rules[4]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function (sometimes called ~pure~).
 A ~bind~ takes an instance of a monad ~M~ and a function that gets a value ~a~ and returns an instance of type ~M~ with ~a~ inside of it. The result will be a monad ~M~ again. This is what enables us to chain these operations together.
-The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). The ~return~ function is sometimes also referred to as ~pure~. To better understand the signature, see listing 7 where Haskell notation has been used to spell out the types.
-#+CAPTION: Haskell notation of the functions ~bind~ and ~return~
-#+begin_src haskell
-  M a >>= (a -> M b) = M b
-  return a = M a
+The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). To better understand the signature, see listing 7 where Haskell notation has been used to spell out the types.
+
+#+CAPTION: Haskell notation of the functions ~bind~ and ~return~.
+#+begin_src haskell -n 1
+  (>>=) :: M a -> (a -> M b) -> M b
+  return :: a -> M a
 #+end_src
+
+~>>=~ takes a monadic value and a function that takes a value and turns it into a monadic value. The result is another monadic value. We can think of this as taking the value out of ~M b~, so the function can work with it and transform it to something different. The result is another monadic value, so it can be composed further. The ~return~ function is what build a monadic value from a primitive value. An example of a ~return~ would be the ~Just~ in front of ~Just 5~, that turns a ~5~ into a ~Maybe~ value.
 
 An implementation of these functions needs to fulfill the following three rules to be considered a monad[5]:
 - Left identity: ~return a >>= h = h a~
@@ -320,6 +328,12 @@ An implementation of these functions needs to fulfill the following three rules 
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a ~continuation~ function, if provided on the right side. The rule of associativity tests that the order of operation remains, even if the association of the operations changes. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
+*** Why we use monads for our sequential composition
+Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for an action to be emitted) away from the developer while providing strong tools to combine our sequential steps.
+The required functions also are a great fit for our API. With the ~>>=~ operation we give the developer an easy way to further compose their sequential components. We also need to make a new type, which we can in turn use to distinguish our sequential and parallel compositions from each other. The ~return~ function then acts as a constructor for our new type.
+
+We will take advantage of reacl-c's great action system, to keep necessary wiring of steps to a minimum. As a result we will have to wait for actions to be emitteed. Because of that (and the inherint domain of the problem) we need to take asynchronisty into account. That means our sequential composition needs a specially labeled environment in which that it can be executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
+The next chapter will talk about the current and possible future developer experience for our sequential composition. No doubt will monads allow us to create a better, frictionless API to improve how developers can compose sequentially.
 * TODO Behavior
 ** How we build sequences now
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React. However, this is limited to creating a new component that just displays all composed components at the same time. In other words, it is only possible to compose in parallel. To create a component which initially displays some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps.
@@ -562,7 +576,7 @@ Should the last Prog be shown indefinitely? From a user experience perspective i
 The issue of receiving no continuation could be avoided entirely, by always requiring a continuation.
 The downside to this would be a minor annoyance for developers, but makes sense for internal use, as less code is needed to implement the above behavior.
 The API will enable developers to not specify a continuation, but it’ll actually pass an empty function instead.
-** Why monads are a good fit
+** TODO Why monads are a good fit
 Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for a ~Commit~, combining ~Progs~) away from the developer while providing strong tools to combine our sequential steps.
 The required functions also are a great fit for our API. With the ~>>=~ operation we give the developer an easy way to further compose their sequential components. We also need to make a new type, which we can in turn use to distinguish our sequential and parallel compositions from each other. The ~return~ function then acts as a constructor for our new type.
 Because we wait for a ~Commit~ to be emitted, we need to take asynchronicity into account. That means our sequential composition needs a specially labeled environment in which that it can be executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
