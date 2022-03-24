@@ -9,10 +9,6 @@
 #+LATEX_HEADER: \usepackage{adjustbox}
 #+LATEX_HEADER: \usepackage{float}
 #+LATEX_HEADER: \restylefloat{table}
-#+LATEX_HEADER: \usepackage{tabularx}
-#+LATEX_HEADER: \usepackage{changepage}
-
-#+BIND: org-latex-caption-above nil
 
 #+OPTIONS: author:nil date:nil title:nil
 #+LATEX: \begin{titlepage}
@@ -324,7 +320,7 @@ An implementation of these functions needs to fulfill the following three rules 
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a ~continuation~ function, if provided on the right side. The rule of associativity tests that the order of operation remains, even if the association of the operations changes. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
-* Behavior
+* TODO Behavior
 ** How we build sequences now
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React. However, this is limited to creating a new component that just displays all composed components at the same time. In other words, it is only possible to compose in parallel. To create a component which initially displays some component and later changes to display another component, after a certain event has been reached (composing sequentially), the logic doing the change from one to the other component, needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps.
 *** If statement
@@ -479,7 +475,7 @@ A possible alternative to this would be to omit the body function entirely and i
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular ~Item~ when wanted. It should be further composibly in parallel with other ~Items~ and actions should be able to be caught from it.
 The actual sequential composition will be done using the ~bind~ function (to compose things further) and ~return~ (to create a composible type). Developers can use these functions to build up their sequential compositions outside of the ~runner~. The ~runner~ itself will act as an abstraction to those two primitive functions.
-* API Design
+* TODO API Design
 This being the introduction of sequential composition into reacl-c, it was important to provide strong primitives. Reacl-c already has excellent tools for parallel composition, so the sequential composition should be closely aligned with them, to be intuitive for developers.
 The implementation needs to also hide the heavy lifting done in the background and not cause any unexpected issues that would cause it to become unusable for any scenario. The sequential composition should not interfere with the parallel composition and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially however they like without any limitations.
 ** Used types
@@ -623,7 +619,7 @@ Now, inside of our ~then~ function we need to handle both cases. For this we dif
       (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
 #+end_src
 To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our function. In this case we say that the ~prog~ can be a ~Prog~ (or it's subtype ~Bind~). The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
-** TODO runner
+** runner
 The place for our monad to be executed in is the ~runner~. It will receive a ~Prog~ or ~Bind~. The ~runner~ is the most complex function in our API because of all the things it needs to do:
 1. Show current step
 2. Bookkeeping of state for steps
@@ -768,7 +764,7 @@ For this we will simply wrap our ~then~ macro with our primitive ~runner~ from t
 While the current implementation achieves what it set out to do, some compromises had to be made. First, as mentioned earlier, it is being relied on the fact that the developer actually emits a ~Commit~ in what they label a ~Prog~. There is currently no logic to make sure that the developer is forced too or reminded if they aren't. Another limitation is that the current API offers only primitives and our two macros, but none of the deep functionality which is found in reacl-c for the parallel composability. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there is no ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like with a ~Maybe~ monad.
 * Examples
 With our API now defined and implemented we can take a quick look at some examples, to find out if we have improved the developer experience.
-** Sign-up component
+** TODO Sign-up component
 Our initial example, to explain what sequential composition is, was a sign-up component. That makes sense because modern sign-up processes are often split up into parts. Lets build that three step sign-up process again, this time with our API.
 #+CAPTION: Example usage of our API for the sign-up process shown in the "Motivation" chapter
 #+begin_src clojure
@@ -856,7 +852,7 @@ Lastly, helper functions for sequential composition, like the ones that exist in
 Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composable. Despite all of the work happening under the hood, from tail call optimization to handling the asynchronously, the developer can use the API without ever being bothered by either. At the same time usage is simple, thanks to taking an already well understood way of working with data, like ~let~, as an inspiration.
 While the API could be enhanced, the added complexity of some proposals could also take away from the currently present simplicity. It's best to first see how the current implementation solves the problems presented by workflows, before making big additions.
 We're pleased with the implementation and are excited to find out what we can build with it in the future.
-* Sources
+* TODO Sources
 - [1] https://reactjs.org/
 - [2] https://github.com/active-group/reacl-c/
 - [3] https://www.youtube.com/watch?v=YDj20ySKWP8
