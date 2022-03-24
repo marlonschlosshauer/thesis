@@ -85,7 +85,7 @@ It is important to point out that the here mentioned sequentiality is different 
 Because our sequential composition exhibits natural sequentiality (e.g first step ~A~, then step ~B~) we also want to represent that in our code.
 An example of a sequential composition would be to first ask the user for their email address, then, after having the user enter a valid email, show another input field, where the the user can enter a code that was sent to them, using their email. Notice that the second step can depend on information that was gathered by the previous step.
 
-#+CAPTION: Example of sequential composition of a sign-up component. The first composition combines two steps, before being again further composed by adding a third step.
+#+CAPTION: Example of sequential composition of a register component. The first composition combines two steps, before being again further composed by adding a third step.
 #+ATTR_LATEX: :width 350px
 [[./images/sequential-composition-highlighted.png]]
 
@@ -447,8 +447,8 @@ This is an elegant solution to compose sequentially. However, the amount of boil
 :UNNUMBERED: t
 :END:
 We've now looked at four different approaches to building sequences. Current structures either don't offer composability or they require a lot of boilerplate to be composable. It is possible to write functions which abstract that boilerplate code away, but that takes both time and effort. Support from modern frameworks could not only save developers time but also deliver smooth integration with other features of the framework. But how would that integration work? In the next chapter we will explore how composing sequentially in reacl-c might look like from the developers point of view.
-** TODO How we might want to build sequences
-The goal is to create both an easy to use yet powerful tool to compose sequentially. Lets first look at some required features that our implementation should deliver before we talk about how a developer might interact with it.
+** How we might want to build sequences
+In the previous chapter we have seen how building tools to compose sequentially either exposed us to a lot of edge cases, had cumbersome problems or forced lots of boilerplate unto us. Lets take that knowledge and use it to design a more plesent developer experience. At the same time our goal is to also create a powerful tool to compose sequentially. But what does that mean? What are some features that our implementation would need to provide?
 *** What it should do
 :PROPERTIES:
 :UNNUMBERED: t
@@ -456,36 +456,52 @@ The goal is to create both an easy to use yet powerful tool to compose sequentia
 Our sequential composition needs to handle the synchronicity of the domain. That means only one value is to be shown to the user at a time. It's often the case that a step depends on information provided in the previous step. As such it is important for our composition to allow future steps to access the values returned by earlier steps.
 Because of similar requirements with synchronicity and order, it should also be possible to compose other asynchronous operations such as HTTP requests.
 Lastly, individual steps should be fully composable. They should be shareable and have the ability to nest in complex ways.
+While these are solid requirements we also need to keep in mind that our sequential composition needs to be intiuitive and easy to use.
 *** How a developer should be able to use it
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-Unlike parallel composition, there are little examples to go off of. Because of this it makes sense to draw inspiration from other, already well established, functions.
-ClojureScript provides something that allows us to define things in a neat way with the ~let~ function[6]. As seen in listing 13, a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed.
+Unlike parallel composition (where we can look to reacl-c and React for references) there are little examples to go off of when it comes to our sequential composition. Because of this it makes sense to draw inspiration from other, already well established, functions.
+ClojureScript provides something that allows us to define things in a neat way with the ~let~ function[6]. As seen in listing 13, a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed. We will take a closer look at how ~let~ achieves this, at the end of this thesis.
 #+CAPTION: Using ~let~ to bind values to the names ~one~, ~two~, ~three~. The body is the last line, which is an operation that returns ~6~.
-#+begin_src clojure
+#+begin_src clojure -n 1
   (let [one 1
-    two (+ 1 one)
-    three (inc (* two one))]
+	two (+ 1 one)
+	three (inc (* two one))]
     (+ one two three))
 #+end_src
 
-Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the from of ~ref-let~[7]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 14 shows how our earlier sign-up example could look like if we used a ~let~ like style. Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared ~keys~) at the end.
-#+CAPTION: Earlier sign-up example written in a ~let~ style
-#+begin_src clojure
+Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the from of ~ref-let~[7]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 14 shows how our earlier register example could look like if we used a ~let~ like style. We call ~runner~ and pass our ~key:value~ pairs for each step. Where ~value~ is the actual step and ~key~ is a name which the returned value will be associated with.
+Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared ~keys~) at the end.
+#+CAPTION: Earlier register example written in a ~let~ style. ~personal~, ~verification~ are now names for the returned values of their respective steps, that can be used to access these values further down.
+#+begin_src clojure -n 1
   (runner [personal (personal-info)
-       verification (verification-code personal)]
-      (show-account-info [personal verification]))
+	   verification (verification-code personal)]
+	  (personal-information))
 #+end_src
-A possible alternative to this would be to omit the body function entirely and instead use the element previously placed in the body (~show-account-info~ in our example), as the last element in our ~key:value~ pairs list. While not commonly used like this, ~let~ also allows for this style. This has the benefit of creating a concise and consistent look and feel.
-#+CAPTION: Login example in ~let~ style without a body function
-#+begin_src clojure
+A possible alternative to this would be to omit the body function entirely and instead use the element previously placed in the body (~personl-information~ in our example), as the last element in our ~key:value~ pairs list. See listing 15 for an example. While not commonly used like this, ~let~ also allows for this style. This has the benefit of creating a concise and consistent look and feel.
+#+CAPTION: Register exampel of listing 14 now in ~let~ style without a body function.
+#+begin_src clojure -n 1
   (runner [personal (personal-info)
-       verification (verification-code personal)
-       info (show-account-info [personal verification])])
+	   verification (verification-code personal)
+	   info (personal-information)])
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular ~Item~ when wanted. It should be further composibly in parallel with other ~Items~ and actions should be able to be caught from it.
-The actual sequential composition will be done using the ~bind~ function (to compose things further) and ~return~ (to create a composible type). Developers can use these functions to build up their sequential compositions outside of the ~runner~. The ~runner~ itself will act as an abstraction to those two primitive functions.
+
+Our ~runner~ looks like a shortened ~switch~ structure. To enable composition, we will make use of monads. Each step on the inside will be able to be further composed, by using the ~bind~ function (to compose multiple steps ogether) and ~return~ (to create a composible type). Developers can use these functions to build up their sequential compositions outside of the ~runner~. The ~runner~ itself will then run these compositions, as well as the compositions provided via the ~key:value~ pairs. Listing 16 shows another way for us to express our sequential composition, using the ~bind~ function. Developers will be able to mix the two styles interchangeable.
+
+#+CAPTION: Listing 14 implemented using just ~bind~.
+#+begin_src clojure -n 1
+  (runner
+   [_ (bind
+       (personal-info)
+       (fn [personal]
+	 (bind
+	  (verficiation-code (:email personal))
+	  (fn [verfication] (personal-info)))))])
+#+end_src
+
+This is just a first glimps of what it will be like to work with our implementation. In the coming chapter we will further explore what composition will look like and how the runner can be used to create sequential compositions.
 * TODO API Design
 This being the introduction of sequential composition into reacl-c, it was important to provide strong primitives. Reacl-c already has excellent tools for parallel composition, so the sequential composition should be closely aligned with them, to be intuitive for developers.
 The implementation needs to also hide the heavy lifting done in the background and not cause any unexpected issues that would cause it to become unusable for any scenario. The sequential composition should not interfere with the parallel composition and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially however they like without any limitations.
