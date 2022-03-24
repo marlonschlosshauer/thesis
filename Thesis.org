@@ -334,13 +334,16 @@ The required functions also are a great fit for our API. With the ~>>=~ operatio
 
 We will take advantage of reacl-c's great action system, to keep necessary wiring of steps to a minimum. As a result we will have to wait for actions to be emitteed. Because of that (and the inherint domain of the problem) we need to take asynchronisty into account. That means our sequential composition needs a specially labeled environment in which that it can be executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 The next chapter will talk about the current and possible future developer experience for our sequential composition. No doubt will monads allow us to create a better, frictionless API to improve how developers can compose sequentially.
-* TODO Behavior
+* Building sequences
 Having had both an introduction to sequential composition and some of the modern frameworks, that we can use to build our applications, we now can take a look at how sequential composition is done. Or rather, how it isn't. First we will see different approaches to building sequences (structures with multiple steps) and then we will explore how we might want to compose sequences.
-** How we build sequences now
+** How we build sequences right now
 Composition is supported in both reacl-c and other frontend frameworks like Angular or React. However, this is limited to creating a new component that just displays all composed components at the same time. In other words, it is only possible to compose in parallel.
 Currently to create a component which initially displays some component and later changes to display another, after a certain event has been reached, the logic doing the change from one to the other component needs to be implemented by hand. In the following we're going to examine some possible ways to implement a sequence of steps. While we will showcase reacl-c, we want to mention that any shortcomings mentioned aren't exclusive to reacl-c, rather it inherits them from React. Other frameworks like Angular suffer from the same issues, also.
 *** If statement
-The most trivial way to switch between one of two steps is to use an ~if~ statement. While not offering composability, a the simple ~if~ statement is highly effective for binary choices. An example can be seen in listing 8, where we implement an guard for the second step shown in figure 2. The first step, ~login-information~ (defined in listing 4), is shown until it emits it's inner state.
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+The most trivial way to switch between one of two steps is to use an ~if~ statement. While not offering composability, a the simple ~if~ statement is highly effective for binary choices. An example can be seen in listing 8, where we implement an guard for the second step shown in figure 2. The first step, ~login-information~ (defined in listing 4), is shown until it emits it's inner state. From here on we assume that the component ~verfication-code~ exists and works identical to ~login-information~ with the exception of requiring an email string from the previous step. Same is true for ~personal-information~ but without the email requirement.
 
 #+CAPTION: An example of using an ~if~ to guard a step from being shown before another is done. This example combines the two steps previously shown in figure 2.
 #+begin_src clojure -n 1
@@ -359,6 +362,9 @@ The most trivial way to switch between one of two steps is to use an ~if~ statem
 
 A construct like this has already been shown in listing 5, to showcase the handling of actions. Now the focus is on the ~if~ and how it can be used to give a binary choice of what is displayed. Like mentioned earlier, this way of managing steps is limiting. It is however also possible to use composition to enable more than just two steps, by using a component as the second step, that again contains an ~if~ structure like this one. And the second step of that ~if~ could again another ~if~ structure. While functioning, readability of the code suffers and keeping track of the entire sequence might be challenging. Also, gaining access to previous results (e.g the ~email~ from the first step) might require some further engineering. We will explore how this might look like soon.
 *** Switch statement
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 The obvious choice, if we want more than a binary choice, is to use a ~switch~ statement. We can use a ~switch~ statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occurred, the inner component changes the state to allow for the next component to be rendered. We can see an example of this in listing 9. We can see the ~switch~ statement in lines 7-10. The current step and last returned value are saved in local state (lines 2-3) and and updated in the last line.
 
 #+CAPTION: Using a ~switch~ statement (called ~cond~ in ClojureScript) we can react to state and show the step we want to display.
@@ -409,49 +415,51 @@ To make it composible we could add behavior that emits the last result upwards o
 A big issue however would be managing previous results. Should we append each result to a key in the inner state, based on the steps name? We could and while functioning, it would lead to a bad developer experience, as they would need to trace through all compositions to get a sense of available results. Naming conflicts could also arrise without us ever noticing. Another objection could be the amount of boilerplate needed to procude such a structure. Having to write +16 lines of code for three simpmle steps will add up. A long sequence of 9 steps composed by 3 x 3 compositions would be more than 48 lines of code, for logic that defines an order of 9 steps.
 The overall impression is that with a ~switch~ structure simple things are easily done, but complex structures lead to problems.
 *** Callbacks
-We have already explored how we can use switch statements to obtain sequential composition. However we had to fall back to using callbacks to implement our logic. It is however also possible to skip the switch statement and just use callbacks. This has the benefit of relieving us of a lot of code and making it easier at a glance to understand what is happening.
-Listing 12 shows one possible way to implement a component that allows for sequential composability. Listing 13 shows how a developer can use that implementation to sequentially compose.
-#+CAPTION: Definition of a composable component using just callbacks. The ~cb~ callback function will be called once if the user clicks the button. The result of the callback is saved as state and from then on will be shown, instead of the old component.
-#+begin_src javascript
-  const personalInformation = (cb) => { // callback received as parameter
-      const [result, setResult] = useState();
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+Earlier we mentioned that the structure using an ~if~ statement could be enhanced to be composible, by using callbacks. Listing 11 shows the previously in listing 8 defined ~login-info-and-verfication-code~ component now enhanced for an arbitrary next component. It goes further by constructing the entire sequence (lines 13-14) shown in figure 2 and implemented in listing 9 & 10.
 
-      const [email, setEmail] = useState();
-      const [password, setPassword] = useState();
+#+CAPTION: Building the sequence shown in figure 2, under the assumption that the component ~verification-code-with-cb~ exists and works the same as ~login-info-with-cb~.
+#+begin_src clojure -n 1
+  (defn-item login-info-with-cb [callback]
+    (core/local-state
+     {:email nil}
+     (core/handle-action
+      (core/dynamic
+       (fn [[_ inner]]
+	 (if (nil? (:email inner))
+	   (login-information)
+	   (callback (:email inner)))))
+      (fn [[outer inner] ac]
+	(c/return :state [outer (assoc inner :email (:email ac))])))))
 
-      return (result) // display result if present
-	  ? result
-	  : (<div>
-	     <input onChange={setEmail} value={email}/>
-	     <input onChange={setPassword} value={password}/>
-	     <button onClick={() => setResult(cb(email))}>Continue</button> //callback called and result saved
-	     </div>)
-  }
+  (def register
+    (login-info-with-cb (verification-code-with-cb personal-information)))
 #+end_src
 
-At the core it's not much different than the switch-case. We pass down a callback which will be called once the next step is to be shown. The difference is that the book keeping for the next step isn't centralized at the top, but takes place at each and every step. The components themselves can be composed further by making sure the callback itself takes yet another callback, to continue the chain.
+Once the first step has emitted something we set the inner state to it's result, which causes our structure to call the provided callback that contains our next step.
+Again, this benefits massively from the ability to use actions, as the callback now only has the job of returning the next step, instead of indicating the next step, moving state and containing the next step.
 
-#+CAPTION: Using the implementation of listing 12 to compose our steps like in the switch-case example, by building up a chain of functions and passing it to our initial step.
-#+begin_src javascript
-  const login = () => {
-      // compose our steps
-      const cb = (email) => <verificationCode email={email} cb={() => <showAccountInfo/>}/>;
-      return <personalInformation cb={cb}>
-  }
-#+end_src
-Thanks to the flexibility of callbacks, we can now fully compose sequentially. However, this implementation has a couple of shortcomings. Firstly, we need to keep track of a lot of callbacks. This leads to code that is unpleasant to read (see listing 12). Secondly, we still need to write a lot of code every time we want a sequentially composable component. There is potential to abstract some of it away, but that requires a lot more abstraction to be viable. Writing a lot of code isn't necessarily bad, but could introduce typos and bugs. It also means we have more code that we might want to test.
-Most importantly, we again mix our parallel and sequential composition. We want the logic of both to be seperated, because they do different things. Yet every parallel component now needs to do bookkeeping as well.
-Lastly, besides the parameter in the signature, there is no way to distinguish from the outside if this is a sequential or parallel component. Placing a single step of a sequential composition into a parallel composition might not make sense and we'd like to make this not possible on an API level.
+This is an elegant solution to compose sequentially. However, the amount of boilerplate is a lot, considering that each composition needs +8 lines of code (original component not included). But we run into the same issues as with our ~switch~ structure. Mainly the problem of retrieving previous results. While there are solutions for this, the problem is more about the fact that we need to implement this very fundamental building block of sequential composition ourselves and that we need to implement it every time, while taking care of each edge case. Obviously this isn't the case for parallel composition, which is the reason for why we love to work with it so much. We'd like to draw attention to this fact. Creating these sequences isn't difficult because of it's domain, but rather because of support.
 *** Conclusion
-Current methods either don't offer composability or they require a lot of boilerplate to be composable. It is possible to write functions which abstract that boilerplate code away, but that takes time and effort.
-Support from modern frameworks could not save developers time but also deliver smooth integration with other features of the framework.
-** How we might want to build sequences
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+We've now looked at four different approaches to building sequences. Current structures either don't offer composability or they require a lot of boilerplate to be composable. It is possible to write functions which abstract that boilerplate code away, but that takes both time and effort. Support from modern frameworks could not only save developers time but also deliver smooth integration with other features of the framework. But how would that integration work? In the next chapter we will explore how composing sequentially in reacl-c might look like from the developers point of view.
+** TODO How we might want to build sequences
 The goal is to create both an easy to use yet powerful tool to compose sequentially. Lets first look at some required features that our implementation should deliver before we talk about how a developer might interact with it.
 *** What it should do
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 Our sequential composition needs to handle the synchronicity of the domain. That means only one value is to be shown to the user at a time. It's often the case that a step depends on information provided in the previous step. As such it is important for our composition to allow future steps to access the values returned by earlier steps.
 Because of similar requirements with synchronicity and order, it should also be possible to compose other asynchronous operations such as HTTP requests.
 Lastly, individual steps should be fully composable. They should be shareable and have the ability to nest in complex ways.
 *** How a developer should be able to use it
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 Unlike parallel composition, there are little examples to go off of. Because of this it makes sense to draw inspiration from other, already well established, functions.
 ClojureScript provides something that allows us to define things in a neat way with the ~let~ function[6]. As seen in listing 13, a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed.
 #+CAPTION: Using ~let~ to bind values to the names ~one~, ~two~, ~three~. The body is the last line, which is an operation that returns ~6~.
