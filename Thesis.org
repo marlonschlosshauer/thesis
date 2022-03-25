@@ -180,6 +180,7 @@ In React often another package like Redux is used to fix the problem of having t
 
 Before we dive deeper into the unique features that reacl-c has to offer, we'd like to give an overview of the most important functions in the form of table 1. We will explain each function futher in the coming chapters.
 
+#+CAPTION: Signature and description of the most important reacl-c functions.
 | Name                 | Signature                            | Description                                                                                              |
 | ~core/local-state~   | ~x -> Item -> Item~                  | Makes the first parameter available as inner state inside of the second parameter.                       |
 | ~core/dynamic~       | ~([o, i]) => Item -> Item~           | Gives access to (outer & inner) state inside of the function. The function needs to return an ~Item~.    |
@@ -523,7 +524,7 @@ This is just a first glimps of what it will be like to work with our implementat
 * TODO API Design
 This being the introduction of sequential composition into reacl-c, it was important to provide strong primitives. Reacl-c already has excellent tools for parallel composition, so the sequential composition should be closely aligned with them, to be intuitive for developers.
 The implementation needs to also hide the heavy lifting done in the background and not cause any unexpected issues that would cause it to become unusable for any scenario. The sequential composition should not interfere with the parallel composition and the borders between the two should be clearly visible. Most importantly, developers should be able to compose sequentially however they like without any limitations.
-** Used types
+** Types of our API
 While ClojureScript is a dynamically typed language, it is helpful to create types using Clojures ~records~ to make handling and transforming data easier.
 The most fundamental type is an UI element, which reacl-c already supplies in the form of ~Item~. To signal that the next step should be executed the ~Item~ needs to emit something which can be recognized internally. For that purpose the ~Commit~ record exists. If an ~Item~ emits a ~Commit~, the internals will execute the next step.
 A developer could just pass an ~Item~ for composition, however, it makes sense to have the developer acknowledge that they're working with more than just a simple ~Item~. After all, the ~Item~ should at some point emit a ~Commit~ to change the currently shown step. So, to be able to use the ~item~ for sequential composition, the developer needs to wrap it in a ~Prog~. This signals that the developer understood that the ~Item~ will eventually emit a ~Commit~.
@@ -532,7 +533,7 @@ In short:
 - ~Commit~: What an ~Item~ emits to signal that the sequence can continue
 - ~Prog~: An ~Item~ that will emit a ~Commit~
 Internally ~Prog~ has a subtype called ~Bind~, which is the result of a ~then~ call (see next chapter). The ~Bind~ holds both a ~Prog~ and a ~continuation~. The ~continuation~ will be called once a ~Commit~ has been captured from the ~Item~ inside of the ~Prog~. Because it is a subtype, every ~Bind~ is also a ~Prog~. This will enable us to endless compose ~Progs~ with ~then~.
-** Functions exposed by the API
+** Functions exposed by our API
 To deliver on the promises of frictionless composability without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~then~ (also called ~bind~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps.
 The primivate functions are ~return~, ~then~ and ~runner~.
 *** return
@@ -545,42 +546,6 @@ A ~Bind~ cannot be placed directly into a reacl-c ~Item~. To do so, either ~show
 It takes a single ~Bind~ (or ~Prog~) as an argument, which could contain further ~Binds~ inside of it. Once a ~commit~ is emitted from the ~Bind~ that it displays, it calls the ~continuation~ of the ~Bind~ and displays the result of that ~continuation~. If the result is another ~Bind~, emitting another ~commit~ will trigger a call to the ~continuation~ of the new ~Bind~, which should produce yet another ~Bind~ etc.
 *** show
 ~show~ extracts the ~Item~ from the passed parameter, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~ and displays it. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emitted ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
-** Making the API more intuitive with macros
-Earlier we discussed a possible implementation for our sequential composition, using ClojureScripts ~let~ as an inspiration.
-We choose that function, among other things, because it's ~key:value~ structure is well understood and is much easier to read than nested anonymous function calls. However, to achieve our goal we need to make use of a ClojureScript feature called macros.
-*** Why are macros used here?
-From now on, the previously defined functions like ~then~, ~return~, ~runner~ will be called primitives. While these enable us to compose sequentially, they don't work like ~let~ does. Listing 17 shows the current usage of ~then~.
-#+CAPTION: Sequential composition using primitive ~then~ with anonymous function calls.
-#+begin_src clojure
-  (then first
-	(fn [a]
-	  (then second
-		(fn [b]
-		  (then third
-			(fn [c]
-			  (done [a b c])))))))
-#+end_src
-The developer needs to create the anonymous functions by hand, everytime. Thankfully, the functionality of binding ~keys~ to ~values~ stays the same, as results of the components, like ~first~, will be bound to the parameter in the ~continuation~ (e.g the symbol ~a~).
-Because this is functionaly identical, we can write a macro to translate the code example above into the desired ~let~ like structure.
-*** What are macros?
-Macros are a powerful feature which lets us rewrite our ClojureScript code before it's being evaluated. That allows us to use all of ClojureScripts functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a Clojure data structure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated. Because of this we can use the entire language to transform our code, like we transform data, into something more usable.
-Macros can be found all over Clojure and ClojureScript. Functions like ~when~[8] and ~when-not~[9] are actually macros that rewrite themselves to a simple ~if~. Even the much discussed ~let~ function is a macro[10].
-*** Syntax
-The ability to delay evaluation of just some parts of our code is powerful. ClojureScript gives a couple of new symbols to decide how it should evaluate code. We can use these symbols inside of a ~defmacro~ function, which works similar to ~defn~ and ~def~ with which we define functions and values with.
-The following table lists the symbols:
-| Symbol | Name           | Function                          |
-| '      | Quoting        | Stop execution                    |
-| `      | Syntax quoting | Like ' but qualify with namespace |
-| ~      | Unquoting      | Start execution                   |
-We can quote our code with ~'~ or ~`~ to tell Clojure(Script) not to evaluate it[11]. Quoting can be thought of as if we wrap our expression in literal quotes. Here is an example of quoting with JavaScript code: ~[1,2,3].sort()~ and ~"[1,2,3].sort()"~, where the last example isn't an expression anymore, but a String. In Clojure(Script) we can turn our quoted code back into an expression by using the ~~~ symbol[11].
-The difference between the ~'~ and ~`~ symbol is that ~`~ qualifies each expression with their full namespace. So ~`map~ gets turned into ~cljs.core/map~ instead of just ~map~.
-Syntax quoting is an important tool for writing macros as it allows us to to control how symbols are interpreted. We will see later how this is used to create macros that need to treat some symbols in a special way.
-*** What are the uses cases for macros?
-Macros provide so much freedom that they enable us to enhance not just our API but also the language itself. If the problem is beyond manipulating data, but rather about manipulating code, macros are a good fit.
-They allow a developer to provide their API exactly how they imagine it. That's why we will make use of them in our implementation.
-However, while things like binding symbols to values under the hood can be used to make things easier for the developer, it can also cause confusion as developers have no idea where the symbol actually came from and can only assume that it works because a macro is used. That assumption gives them little information though. They can also lead to confusing error messages, as another step is added before the evaluation. And because of their freedom they can be complicated to implement. Lastly, as we're going to discuss later, macros aren't as easy to implement in ClojureScript as they are in Clojure. So macros must be used with care, even if they can be a tremendous help.
-*** Which macros will be implemented?
-To get our ~let~ like structure a ~runner~ macro will be implemented that wraps the ~runner~ primitive and enhances it. Other macros might be added for easier implementation as well, but are not necessary.
 ** How parallel and sequential composition interact
 The developer should be able to use the API like they use the other tools of reacl-c. At the same time though, there needs to be a clear border between the parallel and sequential composition, as they're fundamentally different. To guarentee that, the API introduced the ~Prog~ and ~Bind~ types. While neither works with the other reacl-c tooling (to discourage incorrect usage), both contain an ~Item~.
 Taking a ~Prog~ (or ~Bind~) and turning it into an ~Item~ is simple, thanks to ~runner~ and ~show~. Turning an ~Item~ into a ~Prog~ is also simple and can be done with ~return~,
@@ -733,40 +698,96 @@ To display our sequential composition we can use the ~runner~. If however we jus
       :else (c/fragment)))
 #+end_src
 ** Macros
-The available primitives already enable the developer to craft elaborate sequential compositions, however they aren't able to provide the ~let~ like usage on their own. For this reason, we will implement macros for our API. Only a macro version of the ~runner~ is required, but it makes more sense to enhance the ~then~ primitive first and later wrap the ~runner~ with something that takes advantage of the ~then~ macro. Before we dive into the macros themselves, we first need to take a look at how macros work in ClojureScript.
+When we discussed our implementation of sequential composition earlier, we used ClojureScripts ~let~ as an inspiration. We choose that function, among other things, because it's ~key:value~ structure is well understood and is much easier to read than nested anonymous function calls. However, to achieve our goal of providing a ~let~ like structure we need to make use of a ClojureScript feature called macros.
+In the coming chapters we will explain what macros are, talk about why they're used and show how to write macros. At the end we will showcase our macros and give insight into how they work.
+*** What are macros?
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+Macros are a powerful feature which lets us rewrite our ClojureScript code before it is being evaluated. That allows us to use all of ClojureScripts functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a Clojure data structure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated. Because of this we can use the entire language to transform our code, like we transform data, into something more usable.
+Macros can be found all over Clojure and ClojureScript. Functions like ~when~[8] and ~when-not~[9] are actually macros that rewrite themselves to a simple ~if~. Even the already much discussed ~let~ function is a macro[10].
+*** What are the uses cases for macros?
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+Macros provide so much freedom that they enable us to enhance not just our API but also the language itself. If the problem is beyond manipulating data, but rather about manipulating code, macros are a good fit.
+They allow a developer to provide their API exactly how they imagine it. That's why we will make use of them in our implementation.
+However, while things like binding symbols to values under the hood can be used to make things easier for the developer, it can also cause confusion as developers have no idea where the symbol actually came from and can only assume that it works because a macro is used. That assumption gives them little information though. They can also lead to confusing error messages, as another step is added before the evaluation. And because of their freedom they can be complicated to implement. Lastly, as we're going to discuss later, macros aren't as easy to implement in ClojureScript as they are in Clojure. So macros must be used with care, even if they can be a tremendous help.
+*** Why are macros used here?
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+We mentioned earlier that we need to use macros to get our ~let~ like structure for our ~runner~. But why is that? Listing 17 shows the previously in figure 2 shown register process, build up with our primitves (non-macro) ~then~.
+#+CAPTION: Sequential composition using primitive ~then~ with anonymous function calls.
+#+begin_src clojure -n 1
+  (then
+   (login-information)
+   (fn [personal]
+     (then (verification-code (:email personal))
+	   (fn [_]
+	     (then (personal-information)
+		   (fn []))))))
+#+end_src
+
+While this already enables sequential composition, it is still far off from the easy to read, concise API we had invisioned. The developer needs to create the anonymous functions by hand, everytime. Thankfully, the functionality of binding ~keys~ to ~values~ stays the same, as results of the components, like ~login-information~, will be bound to the parameter in the ~continuation~ (e.g the symbol ~personal~).
+Because this is functionaly identical, we can write a macro to translate the code in listing 17 into the desired ~let~ like structure (seen in listings 13 & 14).
+Before we dive into the macros themselves, we first need to take a look at how macros work in ClojureScript. This includes both the syntax and the necessary setup to generate macros.
+*** Syntax
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+Macros allow us to delay evalution of just some parts of our code. That is a powerful tool. ClojureScript provides a couple of new symbols to so developers can describe how it should evaluate code. We can use these symbols inside of a ~defmacro~ function, which works similar to ~defn~ and ~def~ with which we define functions and values with. Table 2 shows a list of some of the available symbols.
+
+#+CAPTION: Clojure syntax for working with macros
+| Symbol | Name           | Function                          |
+| '      | Quoting        | Stop execution                    |
+| `      | Syntax quoting | Like ' but qualify with namespace |
+| ~      | Unquoting      | Start execution                   |
+
+We can quote our code with ~'~ or ~`~ to tell Clojure(Script) not to evaluate it[11]. Quoting can be thought of as if we wrap our expression in literal quotes. Here is an example of quoting with JavaScript code: ~[1,2,3].sort()~ and ~"[1,2,3].sort()"~, where the last example isn't an expression anymore, but a String. In Clojure(Script) we can turn our quoted code back into an expression by using the ~~~ symbol[11].
+The difference between the ~'~ and ~`~ symbol is that ~`~ qualifies each expression with their full namespace. So ~`map~ gets turned into ~cljs.core/map~ instead of just ~map~.
+Syntax quoting is an important tool for writing macros as it allows us to to control how symbols are interpreted. We will see later how this is used to create macros that need to treat some symbols in a special way.
 *** TODO Setup
-Both Clojure and ClojureScript have access to macros, though implementing one is more complex in the later. This is because macros are always expanded by Clojure, even if they may produce ClojureScript code. This means Clojure is always involved, even in pure ClojureScript projects. This means the compilation process needs to be kept in mind when writing ClojureScript macros. You cannot, for instance, put macros in a ~.cljs~ file.
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+Both Clojure and ClojureScript have access to macros, though implementing one is more complex in the later. This is because macros are always expanded by Clojure, even if they may produce ClojureScript code. This means Clojure is always involved, even in pure ClojureScript projects. So the compilation process needs to be kept in mind when writing ClojureScript macros. You cannot, for instance, put macros in a ~.cljs~ file.
 Regardless, it is still possible to both write macros for ClojureScript and write macros that use ClojureScript code.
-There are multiple ways to write a macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword in the namespace definition, to the namespace defined in the ~.clj~ file.
+There are multiple ways to write a macro for use in ClojureScript. The easiest would be to write the necessary code in a ~.clj~ (instead of a ~.cljs~) file and importing the macro by pointing the ~:require-macros~ keyword in the namespace definition, to the namespace defined in the ~.clj~ file. We used this approach when implementing our API.
+Listing 24 shows the definition of a macro in a ~.clj~ file, whereas listing 25 shows the consumption of that macro in a ~.cljs~ file.
 #+CAPTION: Example definition of a macro in ~macros.clj~ that accesses ClojureScript code.
-#+begin_src clojure
+#+begin_src clojure -n 1
   (ns code.macros)
   (defmacro example-macro [x] (code.other/function x)) ;; dummy macro
 #+end_src
 #+CAPTION: ClojureScript file ~other.cljs~ that imports the previously in ~macros.clj~ defined macro with the ~:require-macros~ keyword
-#+begin_src clojure
+#+begin_src clojure -n 1
   (ns code.other
     (:require-macros [code.macros :as m]))
   (defn function [x] x) ;; dummy function
   (m/example-macro "example")
 #+end_src
-Listing 24 shows the definition of a macro in a ~.clj~ file, whereas listing 25 shows the consumption of that macro in a ~.cljs~ file. They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with its entire namespace (here ~code.other/function~). Namespaces that want to use the macro need to also require the namespace specified in the macro itself (in our case the ~code.other~ namespace). It is advised to create another namespace that abstracts this work away by providing both the needed namespaces and the macros.
+They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with its entire namespace (here ~code.other/function~). Namespaces that want to use the macro need to also require the namespace specified in the macro itself (in our case the ~code.other~ namespace). It is advised to create another namespace that abstracts this work away by providing both the needed namespaces and the macros.
 *** then
-The goal of our macro is to rewrite the passing of multiple ~Progs~ into a series of ~then~ calls, which then bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~key:value~ pairs to our macro. Internally the macro will change this to functional ClojureScript code.
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+The goal of our macro is to rewrite the passing of multiple ~Progs~ into a series of ~then~ calls, which then bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~key:value~ pairs to our macro. Internally the macro will change this to correct ClojureScript code. Correct, because just putting undefined symbols into a list like ~[this or that 1]~ wouldn't work.
+Listing 26 hints at what needs to be done.
 #+CAPTION: The macro will take care of wrapping ~Progs~ in a ~then~ and creates an anonymous functions each time (while binding ~keys~ to function parameters)
-#+begin_src clojure
+#+begin_src clojure -n 1
   ;; Before macro
-  (runner (then prog1
-		(fn [x]
-		  (then prog2
-			(fn [y] prog3)))))
+  (then prog1
+	(fn [x]
+	  (then prog2
+		(fn [y] prog3))))
 
   ;; After macro
-  (runner [x prog1
-	   y prog2
-	   _ prog3])
+  (then [x prog1
+	 y prog2
+	 _ prog3])
 #+end_src
-Listing 26 hints at what needs to be done. The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[15].
+The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[15].
 
 #+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the anonymous functions.
 #+begin_src clojure -n 1
@@ -784,21 +805,25 @@ Our primitive ~then~ takes two parameters. First a ~Prog~ and second a ~continua
 Inside of our function we then do a recursive call to our macro, once again undoing the syntax quoting to pass the ~rest~ value of our list and our ~end-expr~ (which is wrapped by a list, to stop it from being executed by ClojureScript). Our ~end-expr~ will be executed once we've worked through all ~steps~. Important to remember is that ~end-expr~ itself might try to access the symbols given in to our ~then~. This now works, because ~end-expr~ is at the bottom of all of our anonymous functions, which provide the context in which these symbols are bound to values. That is because we have actually haven't executed the code, but transformed it by using syntax quoting.
 See listing 28 to see how the nesting of anonymous functions works out, to allow ~end-expr~ to have access to the symbols at the end.
 #+CAPTION: Example of where ~end-expr~ will be executed.
-#+begin_src clojure
-  (then prog1
-	(fn [x]
-	  (then prog2
-		(fn [y]
-		  (then prog3
-			;; assuming end-expr accesses x y z symbols
-			(fn [z] (end-expr)))))))
+#+begin_src clojure -n 1
+   (then prog1
+	 (fn [x]
+	   (then prog2
+		 (fn [y]
+		   (then prog3
+			 ;; assuming end-expr
+			 ;; accesses x y z symbols
+			 (fn [z] (end-expr x y z)))))))
 #+end_src
 Now our ~then~ macro can be called exactly like we would with ~let~, simply by doing the following:  ~(then [a prog1 b prog2] (fn [] (+ a b)))~ we are able to chain together ~prog1~ and ~prog2~. What we get back is a ~Bind~ of both ~Progs~.
 *** runner
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 With our ~then~ we have greatly improved the desired developer experience, however, the result still returns a ~Bind~. That is fine, as we might want to further compose this. However, we still need to wrap our ~then~ expression with a ~runner~ to run it. To further simplify the experience we will create another macro, this time for the ~runner~ function to give developers the option to do everything within a single call.
 For this we will simply wrap our ~then~ macro with our primitive ~runner~ from the ~bind~ namespace. Again we syntax quote our call and undo the quote for our values. To add even more convenience our ~runner~ macro has an arity of two. If the developer is not interested in supplying an ~end-expr~ function, we will pass an empty function into the ~then~ for them. The resulting code is simple but works exactly as we want it to and can be seen in listing 29.
 #+CAPTION: Definition of the ~runner~ macro.
-#+begin_src clojure
+#+begin_src clojure -n 1
   (defmacro runner
     ([x]
      `(runner ~x (fn [])))
