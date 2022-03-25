@@ -5,6 +5,8 @@
 #+OPTIONS: toc:nil
 #+OPTIONS: broken-links:auto
 
+#+LATEX_HEADER: \usepackage[margin=1.6in]{geometry}
+
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
 #+LATEX_HEADER: \usepackage{adjustbox}
 #+LATEX_HEADER: \usepackage{float}
@@ -104,6 +106,7 @@ Our applications already are a collection of parallel compositions. If we add th
 
 Before we talk about our implementation of sequential composition we will first introduce reacl-c, the framework in which we implemented it. Then we will look at the current way of implementing sequence like behavior, before exploring a possible API for sequential composition. Afterwards we will showcase how we implemented our API in reacl-c. At the end we will both give examples of our API and discuss potential improvements.
 Knowledge of composition of UI elements in modern frameworks like React or Angular is helpful but not required. Neither is knowledge of reacl-c. Some basic knowledge of reacl-c's language, ClojureScript (or Clojure) is required (basic structure, variable definitions, let usage).
+#+LATEX: \newpage
 * Explaining Frameworks And Tools
 To best understand how our composition of sequences might work, we first need to know what the tool we're implementing it in, has to offer. Before we dive into that however, we will look at the roots of that framework - React - to better understand how we can use it. Afterwards we will learn what reacl-c is and what important features it has to offer, that enable our sequential composition. At the end of this chapter we will take a look at monads and why they're also important for sequential composition.
 ** What is React
@@ -353,6 +356,7 @@ The required functions also are a great fit for our API. With the ~>>=~ operatio
 
 We will take advantage of reacl-c's great action system, to keep necessary wiring of steps to a minimum. As a result we will have to wait for actions to be emitteed. Because of that (and the inherint domain of the problem) we need to take asynchronisty into account. That means our sequential composition needs a specially labeled environment in which that it can be executed in. This is much like monads in Haskell too, where monads can be executed in a ~do~ block.
 The next chapter will talk about the current and possible future developer experience for our sequential composition. No doubt will monads allow us to create a better, frictionless API to improve how developers can compose sequentially.
+#+LATEX: \newpage
 * Building sequences
 Having had both an introduction to sequential composition and some of the modern frameworks, that we can use to build our applications, we now can take a look at how sequential composition is done. Or rather, how it isn't. First we will see different approaches to building sequences (structures with multiple steps) and then we will explore how we might want to compose sequences.
 ** How we build sequences right now
@@ -521,6 +525,7 @@ Our ~runner~ looks like a shortened ~switch~ structure. To enable composition, w
 #+end_src
 
 This is just a first glimps of what it will be like to work with our implementation. In the coming chapter we will further explore what composition will look like and how the runner can be used to create sequential compositions.
+#+LATEX: \newpage
 * API Design
 This being the introduction of sequential composition into reacl-c, it was important to provide strong primitives. Reacl-c already has excellent tools for parallel composition, so the sequential composition should be closely aligned with them, to be intuitive for developers.
 The implementation needs to also hide the heavy lifting done in the background and not cause any unexpected issues that would cause it to become unusable for challenging scenarios (such as long sequences). The sequential composition should not interfere with the parallel composition and the borders between the two should be clearly visible. Most importantly sequenctial composition should be easy.
@@ -649,6 +654,7 @@ Should the last Prog be shown indefinitely? From a user experience perspective i
 The issue of receiving no continuation could be avoided entirely, by always requiring a continuation.
 The downside to this would be a minor annoyance for developers, but makes sense for internal use, as less code is needed to implement the above behavior.
 The API will enable developers to not specify a continuation, but it’ll actually pass an empty function instead.
+#+LATEX: \newpage
 * Implementation
 Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for ease of use.
 ** then
@@ -913,44 +919,49 @@ For this we will simply wrap our ~then~ macro with our primitive ~runner~ from t
 #+end_src
 ** Limitations
 While the current implementation achieves what it set out to do, some compromises had to be made. First, as mentioned earlier, it is being relied on the fact that the developer actually emits a ~Commit~ in what they label a ~Prog~. There is currently no logic to make sure that the developer is forced too or reminded if they aren't. Another limitation is that the current API offers only primitives and our two macros, but none of the deep functionality which is found in reacl-c for the parallel composability. So functions that map, filter etc. over sequential compositions are not included. There is also no error handling for sequential composition. Developers need to handle errors by hand in the continuation of the next ~Bind~, as there is no ~Error~ sub-type of ~Commit~. Lastly, there is no way to terminate early, like with a ~Maybe~ monad.
+#+LATEX: \newpage
 * Examples
-With our API now defined and implemented we can take a quick look at some examples, to find out if we have improved the developer experience.
-** TODO Sign-up component
-Our initial example, to explain what sequential composition is, was a sign-up component. That makes sense because modern sign-up processes are often split up into parts. Lets build that three step sign-up process again, this time with our API.
+With our API now defined and implemented we can take a look at some examples.
+** Register sequence
+Our initial example, to explain what sequential composition is, was a register component. That makes sense because modern register processes are often split up into multiple parts. Lets build that three step register process again, this time with our API. Listing 30 shows the sequential composition, which looks both similiar to what we previously saw in listing 16, when examining the API and to listing 14, where we thought up this style of sequential composition. It also looks identical to a ~let~ call.
 #+CAPTION: Example usage of our API for the sign-up process shown in the "Motivation" chapter
-#+begin_src clojure
-  (runner [personal (return personal-info)
-	   code (return verification-code)
-	   _ (done [personal code])])
+#+begin_src clojure -n 1
+  (runner [personal (personal-info)
+	   code (verification-code (:email personal))
+	   _ (personal-information)])
 #+end_src
-Listing 30 shows the sequential composition. We wrap the components inside of ~return~ before passing them but aside from that it looks  identical to a ~let~ call. If the developer knows that the item will only be used in a sequential composition they can of course also use ~def~ and wrap their ~Item~ inside with a ~return~.
-The only necessary change inside of our components is to emit a ~Commit~. See listing 31 for this, where we change the behavior of the ~personal-info~ component.
+The only necessary change inside of our components is to emit a ~Commit~. See listing 31 for this, where we change the behavior of the ~personal-info~ component by returning a commit in line 8, instead of just a value.
 #+CAPTION: Excerpt of the ~personal-info~ component. Parts have been removed for clarity's sake. This is a parallel composition that emits a ~Commit~ once the user presses the button.
-#+begin_src clojure
-  (core/def-item personal-info
+#+begin_src clojure -n 1
+  (core/defn-item personal-info
     (core/local-state
      {:name "" :email ""}
      (core/dynamic
       (fn [[outer inner]]
 	;; input field code ...
 	(dom/button
-	 {:onclick (fn [state action] (core/return :action (bind/make-commit inner)))}
+	 {:onclick (fn [state action] (core/return :action (make-commit inner)))}
 	 "Continue")))))
 #+end_src
 This is all that is needed to create our sign-up process. The ~runner~ can now be placed into a parallel composition.
 ** Endless loop
-Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how often we have looped. Listing 32 shows an example of an infinite loop using our macros.
+Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how many times we have looped. Listing 32 shows an example of an infinite loop using our macros.
 #+CAPTION: Example of an infinite loop using macros.
-#+begin_src clojure
+#+begin_src clojure -n 1
   (defn infinite-loop [n]
-    (m/runner [a (item n) ;; helper function which creates Prog
-	       _ (infinite-loop (inc a))]))
+    (then [a (item n) ;; helper function which creates Prog
+	   _ (infinite-loop (inc a))]))
+
+  (def will-never-stop
+    (runner (infinite-loop 0)))
 #+end_src
-It could be possible that there is an even compactor way, however this implementation is small enough for now. Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~\_~ to ignore its result, like they would also do with a function parameter.
+It could be possible that there is an even compactor way, however this implementation is small enough for now.
+While there probably is an even shorter way of achieving an infinite loop, this implementation is small enough for now. The ~infinite-loop~ function calls itself recursively inside of our ~then~ (line 3). That inifite construct is then placed within a runner (last line).
+Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~_~ to ignore its result, like they would also do with a function parameter.
 ** Re-using compositions
-Using just the ~then~ macro (without the ~runner~), we can save a sequential composition to use it again in multiple places. Because ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See listing 33 for an example of an order process, in which the selection of the product is defined outside of the ~runner~.
-#+CAPTION: Using just ~then~ and ~def~ to define a shareable sequential composition.
-#+begin_src clojure
+Using just the ~then~ macro (without the ~runner~), we can save a sequential composition to use it again in multiple places. Because the ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See listing 33 for an example of an order process, in which the selection of the product is defined outside of the ~runner~.
+#+CAPTION: Using ~then~ and ~def~ to define a shareable sequential composition.
+#+begin_src clojure -n 1
   (def burger-selection
     (m/then [size size-selection
 	     condiments condiments-selection
@@ -963,19 +974,19 @@ Using just the ~then~ macro (without the ~runner~), we can save a sequential com
 	       payment payment-options
 	       _ (confirm-order [credentials order payment])]))
 #+end_src
-Note that we loose the ability to easily access the results of the previous sequential composition, which happened in the first ~then~. Therefore we have to use the ~end-expr~ of our then, to gain access to these values again in the following composition.
+Note that we lose track of accessing the results of the previous sequential composition, which happened in the first ~then~. We do however technically have access to them, but the keyword (e.g ~size~) isn't shown ot the developer, which means they probably forget about it. Therefore we have to use the ~end-expr~ of our first ~then~ (line 5), to gain access to these values again in the following composition (e.g ~order~ in line 9).
 ** Mixing primitives and macros
-Because our macros don't add additional logic, we can mix primitives and macros! In listing 34 we use our primitive ~then~ inside of our macro ~runner~. Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
+Because our macros don't add additional logic, we can mix primitives and macros! In listing 34 we use our primitive ~then~ inside of our macro ~runner~ (lines 3-5). Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
 #+CAPTION: Showcasing composition by using the primitive ~then~ to first compose a complex structure, before inserting it into our macro ~runner~.
-#+begin_src clojure
+#+begin_src clojure -n 1
   (def mix-primitives-macros
     (m/runner [a (item 1)
-	       b (b/then (item (inc a))
-			 (fn [] (b/then (item (+ a 2))
-					(fn [x] (item (inc x))))))
-	       c (item (+ a b))]
-	      (fn [] (+ c 1))))
+	       d (then (item (inc a))
+			 (fn [b] (then (item (inc b))
+					(fn [c] (item (inc c))))))
+	       _ (item (+ a b c d))]))
 #+end_src
+The resulting order is alphabetical, meaning the result of lines 3-5 are saved in d, as the second last operation. Note that it is still possible to access all the symbols created inside of the primitive ~thens~ (e.g ~a, b, c~), further down in the last step (last line).
 ** Repeatable workflow
 In the previous example we saw the benefit of using recursion in our ~runner~. Let's push this further by going beyond a single step. Some software systems are nothing but an endless loop of the same operations. Ordering processes like vending machines come to mind. These are now trivial to create (and enhance) thanks to our sequential composition.
 Let's take a disease testing facility as an example. We're going to model the following steps:
@@ -983,26 +994,37 @@ Let's take a disease testing facility as an example. We're going to model the fo
 2. Select test type and start test
 3. Enter test result
 4. Print, showcase or send result to patient
-Our sequential composition for this process can be seen in listing 35. Noteworthy would be the option to pass the collected information further along, which could be used to collect statistics (e.g for positive cases etc.) by reducing over the information with each successful flow.
+Our sequential composition for this process can be seen in listing 35.
+
 #+CAPTION: Example of a system for a facility that is testing for diseases.
-#+begin_src clojure
-  (defn test-patient-for-disease []
-    (m/runner [personal-info aquire-personal-info
-	       test-info enter-test-info
-	       result enter-test-result
-	       _ (showcase [personal-info test-info result])
-	       _ (test-patient-for-disease)]))
+#+begin_src clojure -n 1
+  (def test-patient-steps
+    (then [personal-info aquire-personal-info
+	   test-info enter-test-info
+	   result enter-test-result
+	   _ (showcase [personal-info test-info result])
+	   _ test-patient-for-disease]))
+
+  (def start-testing
+    (runner test-patient-steps))
 #+end_src
+
+The components ~aquire-personal-info~, ~enter-test-info~, ~enter-test-result~ and ~showcase~ are all assumed to be defined elsewhere. We use the same trick of recursively calling our sequence at the end of the composition (line 6).
+
+Noteworthy would be the option to pass the collected information further along, which could be used to collect statistics (e.g for positive cases etc.) by reducing over the information with each successful flow.
+#+LATEX: \newpage
 * Possible improvements
 While it can be argued that our API does what it set out to do, there are various ideas that have been pushed aside, to spend more time improving the core of the API.
 During the implementation of the ~runner~ the idea for early termination came up. Similar to something like the ~Maybe~ monad, developers could throw a different type of ~Commit~ to tell the chain to break. Inside of the ~runner~ the developer then would have the option to handle the early termination. Whether this could be done by adding a third parameter or by giving a different kind of ~runner~ is yet to be determined. However, giving developers the ability to break the chain at any time could lead to problems, as much like with ~Progs~ actually firing ~Commits~, we can't communicate to the developer that this ~Prog~ might terminate early. This could be solved by making a dedicated type that only works with a subset of operations, but the amount of work required to properly implement this is unknown and likely high.
 But, not just a separate type for terminating early would be of interest. Having the ability to communicate that an error has occurred and then being able to handle that (maybe even in different steps of severity) would be also beneficial. A possible scenario would be a lot of time passing since step 1 and step 2 and the user gets logged out. Instead of having to handle the error either outside of the ~runner~ or inside of every single step, we could dedicate a space inside of the ~runner~ for exactly that.
 Besides new types, another improvement would be to force a developer to ~Commit~ something inside of a ~Prog~. The implementation for this is unclear, however the feature is of interest as that could be a major source of bugs.
 Lastly, helper functions for sequential composition, like the ones that exist in reacl-c for parallel composition, could be a possible addition. Things like a ~def-prog~ function that works like ~def-item~ but also wraps the resulting ~Item~ inside of a ~return~ or the ability to map actions emitted from a component to be ~Commits~ so the actual component doesn't need to be changed, but can still be used inside of a sequential-composition. There are probably many more applications of the deep pool of functions inside of reacl-c, so these are just some that came to mind.
+#+LATEX: \newpage
 * Conclusion
 Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composable. Despite all of the work happening under the hood, from tail call optimization to handling the asynchronously, the developer can use the API without ever being bothered by either. At the same time usage is simple, thanks to taking an already well understood way of working with data, like ~let~, as an inspiration.
 While the API could be enhanced, the added complexity of some proposals could also take away from the currently present simplicity. It's best to first see how the current implementation solves the problems presented by workflows, before making big additions.
 We're pleased with the implementation and are excited to find out what we can build with it in the future.
+#+LATEX: \newpage
 * TODO Sources
 - [1] https://reactjs.org/
 - [2] https://github.com/active-group/reacl-c/
