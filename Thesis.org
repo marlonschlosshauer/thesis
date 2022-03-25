@@ -593,40 +593,9 @@ Should the last Prog be shown indefinitely? From a user experience perspective i
 The issue of receiving no continuation could be avoided entirely, by always requiring a continuation.
 The downside to this would be a minor annoyance for developers, but makes sense for internal use, as less code is needed to implement the above behavior.
 The API will enable developers to not specify a continuation, but it’ll actually pass an empty function instead.
-** Tail Call Optimisation
-Neither Java[12] nor versions of JavaScript that we use in our browsers[13], feature Tail Call Optimization (TCO)[x]. Both langauges are used as host languages, Java for Clojure and JavaScript for ClojureScript. Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guaranteed that successive invocations of nested function calls (like our monadic bind) won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows. Burdening the developer to worry about depth of composition would be undesirable, as the goal is to create an easy to use API.
-It is therefore important to add code to our bind logic, to allow us to implement some kind of TCO around it.
-*** TODO TCO in ClojureScript
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
-While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop[14]. This allows for worry free function invocations, no matter the depth.
-
-Another way to gain TCO is to use what is called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that instead, breaking our ~loop~. Listing 18 shows a crude example. See [12] for a more detailed explanation.
-#+CAPTION: Example of trampolines in JS. ~optimized~ calls ~work~ initially and loops for as long as it returns a ~function~.
-#+begin_src javascript
-  function work(y) {
-      return (y === 0) ? true : () => work(y-1);
-  }
-
-  function optimized(x) {
-      let r = work(x);
-      while (typeof r === 'function') r = r();
-      return r;
-  }
-#+end_src
-*** Custom TCO
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
-While ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronizing functions, in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be developed. We will revisit the concept of the trampoline again during our implementation.
 * Implementation
 Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for ease of use.
-** Primitives
-*** then
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
+** then
 Discussed earlier, the ~then~ function needs to compose steps together. The basic idea is trivial. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing 18 shows the definition of a ~record~ type as well as the ~make-bind~ function.
 #+CAPTION: Record definition of the ~bind~ type and a helper function to filter out incorrect values.
 #+begin_src clojure
@@ -656,10 +625,7 @@ Now, inside of our ~then~ function we need to handle both cases. For this we dif
       (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
 #+end_src
 To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our function. In this case we say that the ~prog~ can be a ~Prog~ (or it's subtype ~Bind~). The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
-*** runner
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
+** runner
 The place for our monad to be executed in is the ~runner~. It will receive a ~Prog~ or ~Bind~. The ~runner~ is the most complex function in our API because of all the things it needs to do:
 1. Show current step
 2. Bookkeeping of state for steps
@@ -669,10 +635,10 @@ The place for our monad to be executed in is the ~runner~. It will receive a ~Pr
 As such we will show the code in its entirety once in listing 21 and go in depth about individual parts one after another.
 #+CAPTION: The entire definition of the ~runner~ function using trampolines, state-management, lenses and actions.
 #+begin_src clojure -n 1
-  (defn runner [b]
-    {:pre [(or (bind? b) (prog? b))]}
+  (defn runner [p]
+    {:pre [(or (bind? p) (prog? p))]}
     (core/local-state
-     b
+     p
      (core/dynamic
       (fn [[_ inner]]
 	(core/handle-action
@@ -684,12 +650,18 @@ As such we will show the code in its entirety once in listing 21 and go in depth
 	     (core/return :state [outer ((bind-continuation st) (commit-payload ac))])
 	     (core/return :action ac))))))))
 #+end_src
-**** Basic Functionality
+*** Basic ~runner~ Functionality
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 The goal of the ~runner~ is to hold and display what is inside of a ~Bind~ (or ~Prog~). While it does this, it wraps the ~Bind~ and waits for a ~Commit~ which will trigger it to call the ~continuation~ of the ~Bind~.
 To understand this better we're going to focus on lines 7-14 of listing 21. First notice the ~core/handle-action~ call. This function takes two parameters. First an ~Item~ to display, second a ~function~ to call once the ~Item~ emits something. The function that will be called can be seen at the bottom on lines 11-14. We don't directly pass an ~Item~ however. We pass a ~focus~ function. This is done to ~core/focus~ the state on a specific part. Namely limiting the implicitly passed state to what is outside of the runner, instead of leaking the bookkeeping state of the runner downwards. This function again takes two parameters. First a lens (function of two arities) and second an ~Item~. We will talk more about the lense in the next chapter.
 The second parameter is the ~show~ function defined in our API, which just takes either ~Bind~, ~Prog~ or ~Item~ and unwraps it to an ~Item~ again.
 From this point on we can talk about the ~function~ that was passed to the ~handle-action~, which takes up lines 11-14. That function has two parameters again. First is the state of the ~runner~ at the moment at which the action was emitted from the ~Item~. We have access to this, so we can reduce the state with the second parameter, the action which the ~Item~ sent, into a new state. We then return that new state with the ~core/return~ function (using the ~:state~ keyword). This lets the component know that it needs to update its state, therefore render itself again. In the parameter definition of our function (line 11) the state is destructured into the outer state, which was implicitly passed to our ~runner~ and the state of the ~runner~ itself (here named ~st~). In line 12 we have a check to confirm the ~Item~ sent us an action that is a ~Commit~. If it isn't a ~Commit~, the action will propagate further upwards because of the ~core/return~ call in line 14. We also check if our current state holds a ~Bind~, because only if we have a ~Bind~, can we call a ~continuation~. In line 13 we then call the ~continuation~ of our ~Bind~ with the payload of the ~Commit~ and return it as state of our ~runner~.
-**** Lens
+*** Using lenses to hide state
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 The previously mentioned lens in line 9 is needed to stop leaking the bookkeeping for our tail call optimization, downwards into our ~Item~.
 Lenses are a popular mechanism in functional programming to, on one side, restrict the available information, while allowing changes from the restricted side to change the whole, as well.
 It does this by providing two functions: Yanker and shover. The yanker grants access to parts of the whole. If parts of that whole are changed, the shover is called to marry that part again with the whole, so the update can trickle upwards again.
@@ -707,17 +679,36 @@ The code for the ~first-lens~ can be found in listing 22.
 Because we don't want the internal state introduced by our ~local-state~ call (inside of our ~runner~) to leak, but we do want the state surrounding the ~runner~ to be passed down, we ignore the inner state (bookkeeping) and pass down the outer state (implicitly passed state).
 Our lens is a function with multiple arities. That means it can take different amounts of parameters. Ours being of arity 1 and 2, means it has two different signatures. A signature where it gets one parameter and a signature where it takes two parameters.
 To restrict access, so when it is called from the perspective of the child, the signature with one parameter is called. That is our yanker. Here the passed parameter is destructured and everything besides the ~first~ element is ignored. That ~first~ element is then returned. On changes to the state from within our child, the signature with two parameters is called. That is our shover. The change being the second parameter, here called ~small~. We again destructure the argument but now ignore the previously named ~first~ and instead access the previously ignored ~rest~. All that is left to do is to combine them with ~cons~ and return them as a list.
-**** Implementing Tail Call Optimization
-Previously we discussed what TCO is and why we need it. Now it is time to take a deeper look at how we implement it by examining lines 3-6 and lines 11-14 in listing 21.
-As mentioned earlier ClojureScript already provides TCO for functions with the ~loop~ and ~recur~ macros. We however need recursion on our ~Progs~, because of that we cannot simply use ~loop~ and ~recur~. This is not a problem though, as we can use the previously explained concept of trampolines to make our own TCO.
-The basic idea is to save the ~Bind~ in our state and update the state each time a ~Commit~ comes in, with the result of the ~continuation~ of our ~Bind~. Updating the state will trigger another render, where the current state is the next step.
-Lets examine it in more detail:
-In our ~runner~ we define the ~Bind~ that was passed into the function (named just ~b~) as local state using the ~core/local-state~ function. This is the first part of our trampoline. Next we call ~core/dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 6 to ~outer~ (which is immediately discarded with ~\_~) and ~inner~ (which is not discarded). This is clever, as we now have access to the state of our ~runner~ component, through the parameter of the function. We need to access that state, because we want to both display the ~Bind~ that it holds and wait for it to ~emit~ a ~Commit~ (using the ~handle-action~ function).
-Now, in line 11, we define the function that will be called once an action is emitted. Like mentioned earlier, if the action is a ~Commit~, we execute the code in line 13. Here we set our state to the result of the ~continuation~ of the ~Bind~ of our ~inner~ state, by calling ~core/return~ with the ~:state~ keyword. With that we complete our trampoline. Because we set our state, the component will be rendered again, this time with the updated state, which is the next step in our sequential composition, because it is the result of the ~continuation~ of our ~Bind~.
-*** show
+*** Implementing Tail Call Optimization
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
+Neither Java[12] nor versions of JavaScript that we use in our browsers[13], feature Tail Call Optimization (TCO)[17]. Yet both both languages are used as host languages. Java for Clojure and JavaScript for ClojureScript.
+Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guaranteed that successive invocations of nested function calls (like our monadic bind ~then~) won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows.
+Burdening the developer to worry about depth of composition would be undesirable, as the goal is to create an easy to use API.
+It is therefore important to add code to our bind logic, to allow us to implement some kind of TCO around it.
+
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop[14]. This allows for worry free function invocations, no matter the depth.
+~loop~ provides a perfectly fine way to get the benefits of TCO for synchronizing functions, but in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be developed.
+
+For our implementation we can leverage the concept of trampolines. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that value instead. That return will then breaking our loop. Listing 18 shows a crude example written in JavaScript. See [12] for a more detailed explanation.
+#+CAPTION: Example of trampolines in JS. ~optimized~ calls ~work~ initially and loops for as long as it returns a ~function~.
+#+begin_src javascript
+  function work(y) {
+      return (y === 0) ? true : () => work(y-1);
+  }
+
+  function optimized(x) {
+      let r = work(x);
+      while (typeof r === 'function') r = r();
+      return r;
+  }
+#+end_src
+
+Having a basic understanding of trampolines, we can return to our implementation and take a deeper look at how we implemented TCO. Lets examine it in more detail:
+In our ~runner~ we define the ~Prog~ that was passed into the function (named just ~p~) as local state using the ~core/local-state~ function. This is the first part of our trampoline. Next we call ~core/dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 6 to ~outer~ (which is immediately discarded with ~\_~) and ~inner~ (which is not discarded). This is clever, as we now have access to the state of our ~runner~ component, through the parameter of the function. We need to access that state, because we want to both display the ~Prog~ that it holds and wait for it to emit a ~Commit~ (using the ~handle-action~ function).
+Now, in line 11, we define the function that will be called once an action is emitted. If the action is a ~Commit~, we execute the code in line 13. Here we set our state to the result of the ~continuation~ of the ~Prog~ of our ~inner~ state, by calling ~core/return~ with the ~:state~ keyword. With that we complete our trampoline. Because we set our state, the component will be rendered again, this time with the updated state, which is the next step in our sequential composition, because it is the result of the ~continuation~ of our ~Prog~.
+** show
 To display our sequential composition we can use the ~runner~. If however we just want to display one step (indefinitely), we can use ~show~. This is a simple helper function that is used inside of the ~runner~ to display the ~Bind~. At its core it has a ~cond~ call, which allows us to react to specific conditions. This is necessary, because if we get an ~Item~, we can just display it. If however we get a ~Prog~, we need to unwrap the ~Item~ from it. Furthermore, if we get a ~Bind~, we first need to get the ~Prog~ inside of it, before we can unwrap it. Lastly, to make usage easier, if anything else is passed, we display an empty ~fragment~, which is equivalent to nothing. Getting passed neither ~Prog~ or ~Bind~ is the case after finishing the last ~Bind~. See listing 23 for the entire code of the ~show~ function.
 #+CAPTION: Code for the ~show~ function.
 #+begin_src clojure
@@ -730,6 +721,7 @@ To display our sequential composition we can use the ~runner~. If however we jus
       (c/item? x) x
       :else (c/fragment)))
 #+end_src
+#+LATEX: \newpage
 ** Macros
 When we discussed our implementation of sequential composition earlier, we used ClojureScripts ~let~ as an inspiration. We choose that function, among other things, because it's ~key:value~ structure is well understood and is much easier to read than nested anonymous function calls. However, to achieve our goal of providing a ~let~ like structure we need to make use of a ClojureScript feature called macros.
 In the coming chapters we will explain what macros are, talk about why they're used and show how to write macros. At the end we will showcase our macros and give insight into how they work.
@@ -765,7 +757,7 @@ We mentioned earlier that we need to use macros to get our ~let~ like structure 
 While this already enables sequential composition, it is still far off from the easy to read, concise API we had invisioned. The developer needs to create the anonymous functions by hand, everytime. Thankfully, the functionality of binding ~keys~ to ~values~ stays the same, as results of the components, like ~login-information~, will be bound to the parameter in the ~continuation~ (e.g the symbol ~personal~).
 Because this is functionaly identical, we can write a macro to translate the code in listing 17 into the desired ~let~ like structure (seen in listings 13 & 14).
 Before we dive into the macros themselves, we first need to take a look at how macros work in ClojureScript. This includes both the syntax and the necessary setup to generate macros.
-*** Syntax
+*** Macro Syntax
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
@@ -780,7 +772,7 @@ Macros allow us to delay evalution of just some parts of our code. That is a pow
 We can quote our code with ~'~ or ~`~ to tell Clojure(Script) not to evaluate it[11]. Quoting can be thought of as if we wrap our expression in literal quotes. Here is an example of quoting with JavaScript code: ~[1,2,3].sort()~ and ~"[1,2,3].sort()"~, where the last example isn't an expression anymore, but a String. In Clojure(Script) we can turn our quoted code back into an expression by using the ~~~ symbol[11].
 The difference between the ~'~ and ~`~ symbol is that ~`~ qualifies each expression with their full namespace. So ~`map~ gets turned into ~cljs.core/map~ instead of just ~map~.
 Syntax quoting is an important tool for writing macros as it allows us to to control how symbols are interpreted. We will see later how this is used to create macros that need to treat some symbols in a special way.
-*** TODO Setup
+*** TODO Writing macros for ClojureScript
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
@@ -801,7 +793,7 @@ Listing 24 shows the definition of a macro in a ~.clj~ file, whereas listing 25 
   (m/example-macro "example")
 #+end_src
 They also show how a macro can be defined in Clojure, that needs to access ClojureScript code. The important addition is that the source of the macro needs to specify the function with its entire namespace (here ~code.other/function~). Namespaces that want to use the macro need to also require the namespace specified in the macro itself (in our case the ~code.other~ namespace). It is advised to create another namespace that abstracts this work away by providing both the needed namespaces and the macros.
-*** then
+*** ~then~ macro
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
@@ -849,7 +841,7 @@ See listing 28 to see how the nesting of anonymous functions works out, to allow
 			 (fn [z] (end-expr x y z)))))))
 #+end_src
 Now our ~then~ macro can be called exactly like we would with ~let~, simply by doing the following:  ~(then [a prog1 b prog2] (fn [] (+ a b)))~ we are able to chain together ~prog1~ and ~prog2~. What we get back is a ~Bind~ of both ~Progs~.
-*** runner
+*** ~runner~ macro
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
@@ -972,6 +964,5 @@ We're pleased with the implementation and are excited to find out what we can bu
 - [14] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
 - [15] https://github.com/khinsen/monads-in-clojure
 - [16] Effect Systems in Haskell (KCSS 2021) - Page 85, Background
-
-
+- [17] Unwinding Stylized Recursion into iterations (TR19) - Page 13 (?)
 
