@@ -192,6 +192,9 @@ Take note of how many things take something and an ~Item~ as a parameter - and r
 
 Having now seen the most important functions, we're now ready to learn how to use these basic building blocks. Let's begin by talking about how we can use and define ~Items~.
 *** How an Item is made
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 Reacl-c is made up of ~Items~ and functions which operate on these ~Items~. Much like in React, we can use these ~Items~ to build our components.
 The ~dom~ namespace offers all the necessary HTML elements in the form of ~Items~ (e.g ~dom/div~, ~dom/button~). We are however not limited to HTML or even visible elements. It is also possible to place empty ~Items~ to cause effects (e.g HTTP request).
 As an example, to create a headline all that is needed is ~(dom/h2 "Text")~. To make more complicated ~Items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple ~Items~. See listing 3 for an example.
@@ -239,6 +242,9 @@ There are other functions which, much like ~div~, don't add something visually b
 
 We now know how ~Items~ are created. However, our knowledge is limited to static ~Items~ that never change. To change that we will look at how state works in reacl-c. Afterwards we will examine how we can make our compoents interactive.
 *** State Management in reacl-c
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 Like with React, handling state is very important in reacl-c. Thankfully the framework gives the developer many ways to tackle problem of state management. Also like React, developers can easily make out if a component is using or changing state, which makes working with state easier.
 
 Previously we saw how we can use State in React with the ~useState()~ function. State in reacl-c is different and can be shared in mutliple, more complex, ways.
@@ -273,6 +279,9 @@ But we can do more than just access state. With the ~core/return~ function we ar
 
 Now we know how to both access and update state. These are obviously important features of reacl-c. Next we're going to look at how components can interact with each other by using actions.
 *** Emitting and handling actions
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 Both ~core/handle-actions~ and ~core/return~ allow us to work with actions. Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this feature makes our ~Items~ even more composable.
 ~core/return~ was previously introduced as a mechanism to set state, but it can also be used to emit actions by using the ~:action~ keyword (instead of ~:state~). This can be seen in listing 4 in line 24, as a result of user input (button is pressed). The emitted action from the button press will then travel upwards until it is caught by a ~core/handle-action~. Like shown in table 1, ~core/handle-action~ takes two parameters, an ~Item~ which to catch actions from and a ~function~, which will be called once an action has been caught. The function has two parameters. First the state (which can again be destructured to ~[outer inner]~) and a message, which will be the emitted action.
 
@@ -300,6 +309,9 @@ Monads are often described as the programmable semicolon, because they allow us 
 There are different kinds of Monads that serve different purposes. One use case for some monads is to allow us to chain operations on often abstracted away types. This is done to transform data or control the flow of the program or both.
 In order to allow for sequential composition we need to make use of both, with a heavy focus on controlling when and what is executed and shown. We're now going to show a small example of a monad, before talking about what needs to be done to be considered a monad. Afterwards we will end this chapter by talking about why monads are important for our sequential composition.
 *** The Maybe Monad
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something (e.g. ~Just 5~). Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[3]. See listing 6 for an example of multiple HTTP operations that all may fail. All we need to worry about is working with the actual type. The responsibility of working with the side-effects is taken away from us.
 
 #+CAPTION: Instead of having to manually check if each operation succeeded, thanks to the ~Maybe~ type and ~>>=~ operator, the chain will stop if any of the calls return a ~Nothing~.
@@ -310,6 +322,9 @@ A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~
 Monads are everywhere and most developers will have used them, even if they didn't know what a monad is at the time. They help us write cleaner code that is easier to share and make API's easier to use, because they're composable.
 Common cases for monads are IO operations, handling of errors, UI work and to establish a context of values.
 *** What is required to be a monad
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 To be of the monad typeclass the type needs to provide two functions and satisfy three rules[4]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function (sometimes called ~pure~).
 A ~bind~ takes an instance of a monad ~M~ and a function that gets a value ~a~ and returns an instance of type ~M~ with ~a~ inside of it. The result will be a monad ~M~ again. This is what enables us to chain these operations together.
 The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). To better understand the signature, see listing 7 where Haskell notation has been used to spell out the types.
@@ -329,6 +344,9 @@ An implementation of these functions needs to fulfill the following three rules 
 
 Left and right identity are tests to make sure the types work out correctly. ~return~ can both be called with a value to create a monad, when provided on the left side of the bind, or be given as a ~continuation~ function, if provided on the right side. The rule of associativity tests that the order of operation remains, even if the association of the operations changes. Both ~(A >>= B) >>= C~ and ~A >>= (B >>= C)~ should yield the same result.
 *** Why we use monads for our sequential composition
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
 Using monads makes sense because they allow us to abstract the actual logic (e.g. waiting for an action to be emitted) away from the developer while providing strong tools to combine our sequential steps.
 The required functions also are a great fit for our API. With the ~>>=~ operation we give the developer an easy way to further compose their sequential components. We also need to make a new type, which we can in turn use to distinguish our sequential and parallel compositions from each other. The ~return~ function then acts as a constructor for our new type.
 
@@ -596,7 +614,7 @@ Because we wait for a ~Commit~ to be emitted, we need to take asynchronicity int
 ** Tail Call Optimisation
 Neither Java[12] nor versions of JavaScript that we use in our browsers[13], feature Tail Call Optimization (TCO)[x]. Both langauges are used as host languages, Java for Clojure and JavaScript for ClojureScript. Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guaranteed that successive invocations of nested function calls (like our monadic bind) won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows. Burdening the developer to worry about depth of composition would be undesirable, as the goal is to create an easy to use API.
 It is therefore important to add code to our bind logic, to allow us to implement some kind of TCO around it.
-*** TCO in ClojureScript
+*** TODO TCO in ClojureScript
 While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop[14]. This allows for worry free function invocations, no matter the depth.
 
 Another way to gain TCO is to use what is called a trampoline. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that instead, breaking our ~loop~. Listing 18 shows a crude example. See [12] for a more detailed explanation.
