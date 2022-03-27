@@ -657,14 +657,13 @@ The API will enable developers to not specify a continuation, but it’ll actual
 #+LATEX: \newpage
 * Implementation
 Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for ease of use.
-** then
-Discussed earlier, the ~then~ function needs to compose steps together. The basic idea is trivial. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing 18 shows the definition of a ~record~ type as well as the ~make-bind~ function.
-#+CAPTION: Record definition of the ~bind~ type and a helper function to filter out incorrect values.
-#+begin_src clojure
+** return & -then
+Discussed earlier, the ~then~ function needs to compose steps together. The basic idea is trivial. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing 18 shows the definition of the ~Bind~ record type as well as the ~return~ function, which is just a constructor for our ~Bind~ type.
+#+CAPTION: Record definition of the ~bind~ type and a our ~return~ function.
+#+begin_src clojure -n 1
   (defrecord Bind [prog cont])
 
-  (defn make-bind [prog cont]
-    {:pre [(prog? prog)]}
+  (defn return [prog cont]
     (->Bind prog cont))
 #+end_src
 
@@ -678,13 +677,13 @@ This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes 
 Now, inside of our ~then~ function we need to handle both cases. For this we differentiate between a ~then~ call where A: a ~Prog~ is passed or B: where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CPS-transformation. See listing 19 for the previously described code.
 #+CAPTION: Definition of the ~then~ function. The CPS-transformation can be seen in line 7, as the previous ~Bind~ and new ~Bind~ are first deconstructed and then reconstructed into a new ~Bind~.
 #+begin_src clojure -n 1
-  (defn then [prog cont]
+  (defn -then [prog cont]
     {:pre [(or (bind? prog) (prog? prog) (c/item? prog))
 	   (fn? cont)]
      :post [(bind? %)]}
     (if (bind? prog)
-      (make-bind (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
-      (make-bind (if (c/item? prog) (make-prog prog) prog) cont)))
+      (return (bind-item prog) (fn [x] (then ((bind-continuation prog) x) cont)))
+      (return (if (c/item? prog) (make-prog prog) prog) cont)))
 #+end_src
 To give the developer feedback in case they make an error, we add ~:pre~ and ~:post~ annotations, which let ClojureScript know to check the types that come into and out of our function. In this case we say that the ~prog~ can be a ~Prog~ (or it's subtype ~Bind~). The ~cont~ parameter needs to be a function and the result of our operation should always return a ~Bind~.
 ** runner
