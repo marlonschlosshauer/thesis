@@ -15,24 +15,34 @@
 #+OPTIONS: author:nil date:nil title:nil
 #+LATEX: \begin{titlepage}
 
+#+LATEX: \newgeometry{left=1.3in,right=1.3in}
+
 #+BEGIN_CENTER
 #+LATEX: {\Huge Composition of UI elements in reacl-c using monads \par}
+#+LATEX: \vspace{2cm}
+
+#+LATEX: {\Large {\bf Bachelor Thesis } \par}
+#+LATEX: {\normalsize for the acquisition of the academic degree Bachelor of Science \par}
 #+LATEX: \vspace{1cm}
+
+#+LATEX: {\Large Course of Studies: Applied Computer Science \par}
+#+LATEX: \vspace{1cm}
+
+#+LATEX: {\Large Department of Electrical Engineering, \par}
+#+LATEX: {\Large Medical Engineering and Computer Science \par}
+#+LATEX: \vspace{1cm}
+
 #+LATEX: {\Large Marlon Schlosshauer \par}
-#+LATEX: {\Large Applied Computer Science \par}
-#+LATEX: {\Large University of Applied Sciences Offenburg \par}
-#+END_CENTER
+#+LATEX: \vspace{0.1cm}
+#+LATEX: {\Large 30. March 2022 \par}
+#+LATEX: \vspace{1cm}
 
-#+LATEX: \vspace*{\fill}
-#+BEGIN_CENTER
-
-#+LATEX: {\Large Bachelorthesis \par}
-#+LATEX: {\Large October 1st, 2021 - April 1st, 2022 \par}
+#+LATEX: {\Large 1. October 2021 - 1. April 2022 \par}
 #+LATEX: \vspace*{\fill}
 
-#+LATEX: {\Large Professor: Prof. Dr. Stefan Wehr \par}
-#+LATEX: {\Large Supervisor: Markus Schlegel, Active Group GmbH \par}
-
+#+LATEX: {\Large Tutors \par}
+#+LATEX: {\Large Prof. Dr. Stefan Wehr, University of Applied Sciences Offenburg \par}
+#+LATEX: {\Large Markus Schlegel, Active Group GmbH \par}
 #+END_CENTER
 
 #+LATEX: \vspace*{\fill}
