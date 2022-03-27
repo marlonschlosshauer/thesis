@@ -40,7 +40,7 @@
 #+LATEX: {\Large 1. October 2021 - 1. April 2022 \par}
 #+LATEX: \vspace*{\fill}
 
-#+LATEX: {\Large Tutors \par}
+#+LATEX: {\Large Advisors \par}
 #+LATEX: {\Large Prof. Dr. Stefan Wehr, University of Applied Sciences Offenburg \par}
 #+LATEX: {\Large Markus Schlegel, Active Group GmbH \par}
 #+END_CENTER
@@ -1016,10 +1016,9 @@ Lastly, helper functions for sequential composition, like the ones that exist in
 Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composable. Despite all of the work happening under the hood, from tail call optimization to handling the asynchronously, the developer can use the API without ever being bothered by either. At the same time usage is simple, thanks to taking an already well understood way of working with data, like ~let~, as an inspiration.
 While the API could be enhanced, the added complexity of some proposals could also take away from the currently present simplicity. It's best to first see how the current implementation solves the problems presented by workflows, before making big additions.
 We're pleased with the implementation and are excited to find out what we can build with it in the future.
+The source code for our implementation can be found here[18].
 #+LATEX: \newpage
 * TODO Sources
-- [1] https://reactjs.org/
-- [2] https://github.com/active-group/reacl-c/
 - [3] https://www.youtube.com/watch?v=YDj20ySKWP8
 - [4] https://wiki.haskell.org/Monad
 - [5] https://wiki.haskell.org/Monad_laws
