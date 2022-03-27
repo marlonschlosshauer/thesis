@@ -7,7 +7,7 @@
 
 #+LATEX_HEADER: \usepackage[margin=1.6in]{geometry}
 
-#+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black}
+#+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black, citecolor=black}
 #+LATEX_HEADER: \usepackage{adjustbox}
 #+LATEX_HEADER: \usepackage{float}
 #+LATEX_HEADER: \restylefloat{table}
