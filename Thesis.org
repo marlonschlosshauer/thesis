@@ -183,7 +183,7 @@ As an example: A button toggles an option flag from ~true~ to ~false~ and back. 
     (dom/button {:onClick (fn [] (core/return :action :pressed))} text))
 #+end_src
 
-The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system[16]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.
+The action system in reacl-c is inspired by the functional programming concept of effect systems. An effect system allows code to express effects, by tracking them directly through the type system [[cite:&effect-systems-in-haskell]]. Like an effect system, the action system in reacl-c allows us to express these effects by returning either the ~Action~ or ~Return~ type.
 
 With this style of communication, only the parent needs to know the child. The developer does not need to tell the child where to send the action. Reacl-c takes care of that work for us.
 
@@ -326,7 +326,7 @@ In order to allow for sequential composition we need to make use of both, with a
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something (e.g. ~Just 5~). Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do[3]. See listing 6 for an example of multiple HTTP operations that all may fail. All we need to worry about is working with the actual type. The responsibility of working with the side-effects is taken away from us.
+A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something (e.g. ~Just 5~). Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do [[cite:&graham-monads]]. See listing 6 for an example of multiple HTTP operations that all may fail. All we need to worry about is working with the actual type. The responsibility of working with the side-effects is taken away from us.
 
 #+CAPTION: Instead of having to manually check if each operation succeeded, thanks to the ~Maybe~ type and ~>>=~ operator, the chain will stop if any of the calls return a ~Nothing~.
 #+begin_src haskell -n 1
@@ -339,7 +339,7 @@ Common cases for monads are IO operations, handling of errors, UI work and to es
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-To be of the monad typeclass the type needs to provide two functions and satisfy three rules[4]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function (sometimes called ~pure~).
+To be of the monad typeclass the type needs to provide two functions and satisfy three rules [[cite:&haskell-monads]]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function (sometimes called ~pure~).
 A ~bind~ takes an instance of a monad ~M~ and a function that gets a value ~a~ and returns an instance of type ~M~ with ~a~ inside of it. The result will be a monad ~M~ again. This is what enables us to chain these operations together.
 The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). To better understand the signature, see listing 7 where Haskell notation has been used to spell out the types.
 
@@ -351,7 +351,7 @@ The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ wit
 
 ~>>=~ takes a monadic value and a function that takes a value and turns it into a monadic value. The result is another monadic value. We can think of this as taking the value out of ~M b~, so the function can work with it and transform it to something different. The result is another monadic value, so it can be composed further. The ~return~ function is what builds a monadic value from a primitive value. An example of a ~return~ would be the ~Just~ in front of ~Just 5~, that turns a ~5~ into a ~Maybe~ value (of ~Just 5~).
 
-An implementation of these functions needs to fulfill the following three rules to be considered a monad[5]:
+An implementation of these functions needs to fulfill the following three rules to be considered a monad [[cite:&haskell-monad-laws]]:
 - Left identity: ~return a >>= h = h a~
 - Right identity: ~m >>= return = m~
 - Associativity: ~(m >>= g) >>= h = m >>= (\x -> g x >>= h)~
@@ -495,7 +495,7 @@ While these are solid requirements we also need to keep in mind that our sequent
 :UNNUMBERED: t
 :END:
 Unlike parallel composition (where we can look to reacl-c and React for references) there are few examples to go off of when it comes to our sequential composition. Because of this it makes sense to draw inspiration from other, already well established, functions.
-ClojureScript provides something that allows us to define things in a neat way with the ~let~ function[6]. As seen in listing 12, a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed. We will take a closer look at how ~let~ achieves this, towards the end of this thesis.
+ClojureScript provides something that allows us to define things in a neat way with the ~let~ function [[cite:&clojure-let-code]]. As seen in listing 12, a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed. We will take a closer look at how ~let~ achieves this, towards the end of this thesis.
 #+CAPTION: Using ~let~ to bind values to the names ~one~, ~two~, ~three~. The body is the last line, which is an operation that returns ~6~.
 #+begin_src clojure -n 1
   (let [one 1
@@ -504,7 +504,7 @@ ClojureScript provides something that allows us to define things in a neat way w
     (+ one two three))
 #+end_src
 
-Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the form of ~ref-let~[7]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 13 shows how our earlier register example could look like if we used a ~let~ like style. We call ~runner~ and pass our ~key:value~ pairs for each step. Where ~value~ is the actual step and ~key~ is a name which the returned value will be associated with.
+Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the form of ~ref-let~ [[cite:&reacl-ref-let]]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 13 shows how our earlier register example could look like if we used a ~let~ like style. We call ~runner~ and pass our ~key:value~ pairs for each step. Where ~value~ is the actual step and ~key~ is a name which the returned value will be associated with.
 Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared ~keys~) at the end.
 #+CAPTION: Earlier register example written in a ~let~ style. ~personal~, ~verification~ are now names for the returned values of their respective steps, that can be used to access these values further down.
 #+begin_src clojure -n 1
@@ -666,7 +666,7 @@ The downside to this would be a minor annoyance for developers, but makes sense 
 The API will enable developers to not specify a continuation, but it’ll actually pass an empty function instead.
 #+LATEX: \newpage
 * Implementation
-Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for ease of use. The entire source code for our implementation can be found here[18].
+Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for ease of use. The entire source code for our implementation can be found here [[cite:&seq-comp-reacl-c]].
 ** return & -then
 The ~-then~ is arguably the most important function as it needs to compose steps together. However, the idea behind it is trivial to understand. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing 19 shows the definition of the ~Bind~ record type as well as the ~return~ function, which is just a constructor for our ~Bind~ type.
 #+CAPTION: Record definition of the ~bind~ type and a our ~return~ function.
@@ -751,15 +751,15 @@ To restrict access, so when it is called from the perspective of the child, the 
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-Neither Java[12] nor versions of JavaScript that we use in our browsers[13], feature Tail Call Optimization (TCO)[17]. Yet both languages are used as host languages for Clojure (Java for Clojure and JavaScript for ClojureScript).
+Neither Java [[cite:&schwaighofer-tco]] nor versions of JavaScript that we use in our browsers [[cite:&2ality-tail-call]], feature Tail Call Optimization (TCO) [[cite:&unwinding-stylized-recursion]]. Yet both languages are used as host languages for Clojure (Java for Clojure and JavaScript for ClojureScript).
 Due to the high amount of nested function calls it is however an important feature for a functional language. With a correct implementation of Tail Call Optimisation it is guaranteed that successive invocations of nested function calls (like our monadic bind ~then~) won't cause a stack overflow. It can also enable the use of recursion with our bind elements. Something that can enable infinitely repeating workflows.
 Burdening the developer to worry about depth of composition would be undesirable, as the goal is to create an easy to use API.
 It is therefore important to add code to our bind logic, to allow us to implement some kind of TCO around it.
 
-While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop[14]. This allows for worry free function invocations, no matter the depth.
+While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop [[cite:&learn-clojure-looping]]. This allows for worry free function invocations, no matter the depth.
 ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronizing functions, but in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be developed.
 
-For our implementation we can leverage the concept of trampolines. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that value instead. That return will then break our loop. Listing 23 shows a crude example written in JavaScript. See [12] for a more detailed explanation.
+For our implementation we can leverage the concept of trampolines. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that value instead. That return will then break our loop. Listing 23 shows a crude example written in JavaScript. See [[cite:&schwaighofer-tco]] for a more detailed explanation.
 #+CAPTION: Example of trampolines in JS. ~optimized~ calls ~work~ initially and loops for as long as it returns a ~function~.
 #+begin_src javascript
   function work(y) {
@@ -798,7 +798,7 @@ In the following pages we will explain what macros are, talk about why they're u
 :UNNUMBERED: t
 :END:
 Macros are a powerful feature which lets us rewrite our ClojureScript code before it is being evaluated. That allows us to use all of ClojureScripts functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a Clojure data structure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated. Because of this we can use the entire language to transform our code, like we transform data, into something more usable.
-Macros can be found all over Clojure and ClojureScript. Functions like ~when~[8] and ~when-not~[9] are actually macros that rewrite themselves to a simple ~if~. Even the already much discussed ~let~ function is a macro[10].
+Macros can be found all over Clojure and ClojureScript. Functions like ~when~ [[cite:&clojure-when]] and ~when-not~ [[cite:&clojure-when-not]] are actually macros that rewrite themselves to a simple ~if~. Even the already much discussed ~let~ function is a macro [[cite:&clojure-let-code]].
 *** What are the uses cases for macros?
 :PROPERTIES:
 :UNNUMBERED: t
@@ -837,7 +837,7 @@ Macros allow us to delay evaluation of just some parts of our code. That is a po
 | ~`~    | Syntax quoting | Like ~'~ but qualify with namespace |
 | ~      | Unquoting      | Start execution                     |
 
-We can quote our code with ~'~ or ~`~ to tell Clojure(Script) not to evaluate it[11]. Quoting can be thought of as if we wrap our expression in literal quotes. Here is an example of quoting with JavaScript code: ~[1,2,3].sort()~ and ~"[1,2,3].sort()"~, where the last example isn't an expression anymore, but a String. In Clojure(Script) we can turn our quoted code back into an expression by using the ~~~ symbol[11].
+We can quote our code with ~'~ or ~`~ to tell Clojure(Script) not to evaluate it [[cite:&quick-clojure-macros]]. Quoting can be thought of as if we wrap our expression in literal quotes. Here is an example of quoting with JavaScript code: ~[1,2,3].sort()~ and ~"[1,2,3].sort()"~, where the last example isn't an expression anymore, but a String. In Clojure(Script) we can turn our quoted code back into an expression by using the ~~~ symbol  [[cite:&quick-clojure-macros]].
 The difference between the ~'~ and ~`~ symbol is that ~`~ qualifies each expression with their full namespace. So ~`map~ gets turned into ~cljs.core/map~ instead of just ~map~.
 Syntax quoting is an important tool for writing macros as it allows us to to control how symbols are interpreted. We will see later how this is used to create macros that need to treat some symbols in a special way.
 *** Writing macros for ClojureScript
@@ -866,7 +866,7 @@ Listing 26 hints at what needs to be done.
 	   (-then prog2
 		  (fn [y] prog3))))
 #+end_src
-The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[15] and Lei Ray's video on "Monads in Clojure"[19].
+The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced by Lei Ray's video on "Monads in Clojure" [[cite:&lei-ray-monads-clojure]].
 
 #+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the anonymous functions.
 #+begin_src clojure -n 1
@@ -1016,23 +1016,13 @@ Lastly, helper functions for sequential composition, like the ones that exist in
 Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composable. Despite all of the work happening under the hood, from tail call optimization to handling the asynchronously, the developer can use the API without ever being bothered by either. At the same time usage is simple, thanks to taking an already well understood way of working with data, like ~let~, as an inspiration.
 While the API could be enhanced, the added complexity of some proposals could also take away from the currently present simplicity. It's best to first see how the current implementation solves the problems presented by workflows, before making big additions.
 We're pleased with the implementation and are excited to find out what we can build with it in the future.
-The source code for our implementation can be found here[18].
+The source code for our implementation can be found here [[cite:&seq-comp-reacl-c]].
 #+LATEX: \newpage
-* TODO Sources
-- [3] https://www.youtube.com/watch?v=YDj20ySKWP8
-- [4] https://wiki.haskell.org/Monad
-- [5] https://wiki.haskell.org/Monad_laws
-- [6] https://clojuredocs.org/clojure.core/let
-- [7] https://github.com/active-group/reacl-c/blob/0.10.10/src/reacl_c/core.cljc#L94
-- [8] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L493
-- [9] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L499
-- [10] https://github.com/clojure/clojure/blob/clojure-1.10.1/src/clj/clojure/core.clj#L4481
-- [11] Quick Clojure: Effective Functional Programming - 10. Macros
-- [12] Tail Call Optimization in the Java HotSpotTM VM
-- [13] https://2ality.com/2015/06/tail-call-optimization.html
-- [14] https://www.learn-clojurescript.com/section-2/lesson-11-looping/
-- [15] https://github.com/khinsen/monads-in-clojure
-- [16] Effect Systems in Haskell (KCSS 2021) - Page 85, Background
-- [17] Unwinding Stylized Recursion into iterations (TR19) - Page 13 (?)
-- [18] https://github.com/marlonschlosshauer/thesis-code
 
+bibliographystyle:unsrt
+[[bibliography:./cites.bib]]
+
+
+#+LATEX: \listoffigures
+
+#+LATEX: \listoftables
