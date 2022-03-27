@@ -866,7 +866,7 @@ Listing 26 hints at what needs to be done.
 	   (-then prog2
 		  (fn [y] prog3))))
 #+end_src
-The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[15].
+The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced from Konrad Hinsen's blog post "Monads in Clojure"[15] and Lei Ray's video on "Monads in Clojure"[19].
 
 #+CAPTION: The entire macro that wraps our ~Progs~ with ~then~ and generates the anonymous functions.
 #+begin_src clojure -n 1
