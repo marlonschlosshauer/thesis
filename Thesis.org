@@ -125,8 +125,9 @@ To best understand how our sequential composition might work, we first need to g
 ** What is React
 React is a popular UI framework developed by Meta (formerly Facebook) and is written in JavaScript. It is important for us to understand, because the framework that we're going to work in, reacl-c, is based on React and as a result inherits a lot of its ideas.
 React, like many other modern JavaScript frameworks, is a Single-Page-Application (SPA), which means the entire application is loaded and available after visiting a single page. Instead of having each page defined in HTML, developers are able to define all pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browser's DOM.
-An example of JSX can be seen in listing 1, which shows how the register component shown in [[par-comp][figure 1]] could be implemented in React.
+An example of JSX can be seen in [[listing-1][listing 1]], which shows how the register component shown in [[par-comp][figure 1]] could be implemented in React.
 #+CAPTION[Defining the register component shown in figure 1.]: Defining the register component shown in [[par-comp][figure 1]]. JSX allows developers to work with HTML and JS in the same file. Note the ability to call previously defined components, like they're HTML elements (lines 17, 26).
+#+NAME: listing-1
 #+begin_src javascript -n 1
   const registerInputs = () => {
       const [email, setEmail] = useState();
@@ -181,8 +182,9 @@ Instead of having the parent pass down a function to, e.g manipulate state, the 
 #+NAME: inversion-emit
 [[./images/emit-vs-callback.png]]
 
-As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon. See listing 2 for an example of a button that works like that, in reacl-c.
+As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon. See [[listing-2][listing 2]] for an example of a button that works like that, in reacl-c.
 #+CAPTION[Creating an ~abstract-button~.]: We create an ~Item~ called ~abstract-button~ which contains a button. If pressed, it's going to fire an ~:action~ with the value ~:pressed~ to its parent. Notice the lack of callback given to our ~abstract-button~ component. ~text~ is the only parameter given, yet our component will be able to communicate with a parent thanks to the action system.
+#+NAME: listing-2
 #+begin_src clojure -n 1
   (defn-item abstract-button [text]
     (dom/button {:onClick (fn [] (core/return :action :pressed))} text))
@@ -233,8 +235,9 @@ Having now seen the most important functions, we're ready to learn how to use th
 :END:
 Reacl-c is made up of ~Items~ and functions which operate on these ~Items~. Much like in React, we can use these ~Items~ to build our components.
 The ~dom~ namespace offers all the necessary HTML elements in the form of ~Items~ (e.g ~dom/div~, ~dom/button~). We are however not limited to HTML or even visible elements. It is also possible to place empty ~Items~ to cause effects (e.g HTTP request).
-As an example, to create a headline all that is needed is ~(dom/h2 "Text")~. To make more complicated ~Items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple ~Items~. See listing 3 for an example.
-#+CAPTION[Showcasing composition of multiple ~Items~.]: Showcasing composition of multiple ~Items~ into one by using a ~div~, by building a static version of the previously in listing 1 implemented ~registerInputs~ component.
+As an example, to create a headline all that is needed is ~(dom/h2 "Text")~. To make more complicated ~Items~, combinators like ~(dom/div)~ or ~(core/fragments)~ can be used. These can contain multiple ~Items~. See [[listing-3][listing 3]] for an example.
+#+CAPTION[Showcasing composition of multiple ~Items~.]: Showcasing composition of multiple ~Items~ into one by using a ~div~, by building a static version of the previously in [[listing-1][listing 1]] implemented ~registerInputs~ component.
+#+NAME: listing-3
 #+begin_src clojure -n 1
   (def register-inputs
     (dom/div
@@ -244,11 +247,12 @@ As an example, to create a headline all that is needed is ~(dom/h2 "Text")~. To 
      (dom/button "Register")))
 #+end_src
 
-Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also receive a ClojureScript ~map~ as their second argument. With this ~map~ things like CSS classes and inline-style can be applied. We saw this used in listing 3 in line 3 to add a class to our ~div~. If the ~Item~ is interactive, like Buttons and Inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback (that can change state).
+Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also receive a ClojureScript ~map~ as their second argument. With this ~map~ things like CSS classes and inline-style can be applied. We saw this used in [[listing-3][listing 3]] in line 3 to add a class to our ~div~. If the ~Item~ is interactive, like Buttons and Inputs are, the keywords ~onChange~ and ~onClick~ can be used to register a callback (that can change state).
 
-There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~Item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each soon. A working example of one of the components in the registration sequence of figure 2  can be seen in listing 4. We will use this listing to examine more of reacl-c's API.
+There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~Item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each soon. A working example of one of the components in the registration sequence of figure 2  can be seen in [[listing-4][listing 4]]. We will use this listing to examine more of reacl-c's API.
 
-#+CAPTION[A complete example of the first step shown in figure 2.]: A complete example of the first step shown in [[seq-comp][figure 2]]. Previously defined in listing 3 but without state or any form of interactivity. Now thanks to ~core/local-state~, ~core/dynamic~ and ~core/return~ the ~Item~ has state that is manipulated by user input.
+#+CAPTION[A complete example of the first step shown in figure 2.]: A complete example of the first step shown in [[seq-comp][figure 2]]. Previously defined in [[listing-3][listing 3]] but without state or any form of interactivity. Now thanks to ~core/local-state~, ~core/dynamic~ and ~core/return~ the ~Item~ has state that is manipulated by user input.
+#+NAME: listing-4
 #+begin_src clojure -n 1
   (core/defn-item login-information []
     (dom/div
@@ -288,7 +292,7 @@ Previously we saw how we can use State in React with the ~useState()~ function. 
 Firstly, while a component might have state, it is not accessible to the developer until they use the ~core/dynamic~ function or ~core/with-state-as~ macro. This has the benefit of instantly marking a component as one that needs and works with state. We will take a look at what the two functions do shortly.
 
 Secondly, like mentioned earlier, state is split into two categories:
-- Inner state, which is defined inside of the component by using either ~core/local-state~ (see listing 4, line 4-6) or ~core/isolate-state~.
+- Inner state, which is defined inside of the component by using either ~core/local-state~ (see [[listing-4][listing 4]], line 4-6) or ~core/isolate-state~.
 - Outer state, or state that is passed down from the parent component.
 That passing down of outer state happens implicitly. That means we don't need to tell the parent to share its state with its children.
 
@@ -307,11 +311,11 @@ It does not only lead to less code that needs to be written (because of the abse
 
 If state inside of the parent isn't in a format that is useful to the child, it can be further composed by wrapping it in another component that adapts the parent state by transforming it into the correct format. This is again possible because state is also implicitly passed into the adapter and from the adapter into the actual child. We will explore this mechanism in-depth later.
 
-Let's apply our knowledge of outer and inner state and take a closer look at how we can use the provided API, by taking listing 4 as an example.
+Let's apply our knowledge of outer and inner state and take a closer look at how we can use the provided API, by taking [[listing-4][listing 4]] as an example.
 We can see the previously mentioned ~core/local-state~ (line 4-6) is used to add a map with two fields as inner state. The second argument (line 7)is an ~Item~ which the inner state will be applied to. But, just ~core/local-state~ isn't enough, as we don't have a keyword to access our inner state.
 To access that newly added inner state, we need to use the ~core/dynamic~ function. The function itself takes a single parameter: Another function, that now must return an ~Item~. That function gets the surrounding state as an argument (line 8), therefore anything inside of it has at least read access to the state. The parameters of that function have been destructured into outer and inner state (line 8). We can see that the function will return a ~core/div~ and that the provided inner state is used in lines 15-16 & 22-23, 24.
 
-But we can do more than just access state. With the ~core/return~ function we are able to change state (and send actions, see next chapter). We can see usage of ~core/return~ in listing 4 at lines 15, 22 & 24. The ~core/return~ function takes two arguments. A keyword and a value. If the ~:state~ keyword has been supplied (like in lines 15, 22), we will set the state to the second argument (the value). This will change both inner and the inherited outer state. In line 15 we can see that the ~:email~ keyword in the inner state is to be updated to the value of the event, while the outer state is kept the same. Outer and inner state are supplied through a list, which is why we also return a list as our value which the state will be set to.
+But we can do more than just access state. With the ~core/return~ function we are able to change state (and send actions, see next chapter). We can see usage of ~core/return~ in [[listing-4][listing 4]] at lines 15, 22 & 24. The ~core/return~ function takes two arguments. A keyword and a value. If the ~:state~ keyword has been supplied (like in lines 15, 22), we will set the state to the second argument (the value). This will change both inner and the inherited outer state. In line 15 we can see that the ~:email~ keyword in the inner state is to be updated to the value of the event, while the outer state is kept the same. Outer and inner state are supplied through a list, which is why we also return a list as our value which the state will be set to.
 
 Now we know how to both access and update state. These are obviously important features of reacl-c. Next we're going to look at how components can interact with each other by using actions.
 *** Emitting and handling actions
@@ -319,10 +323,11 @@ Now we know how to both access and update state. These are obviously important f
 :UNNUMBERED: t
 :END:
 Both ~core/handle-actions~ and ~core/return~ allow us to work with actions. Actions are an important tool for children to communicate with their parents. Like the implicit (or explicit) passing of state from the parent, this feature makes our ~Items~ even more composable.
-~core/return~ was previously introduced as a mechanism to set state, but it can also be used to emit actions by using the ~:action~ keyword (instead of ~:state~). This can be seen in listing 4 in line 24, as a result of user input (button is pressed). The emitted action from the button press will then travel upwards until it is caught by a ~core/handle-action~. Like shown in table 1, ~core/handle-action~ takes two parameters, an ~Item~ which to catch actions from and a function, which will be called once an action has been caught. The function has two parameters. First the state (which can again be destructured to ~[outer inner]~) and a message, which will be the emitted action.
+~core/return~ was previously introduced as a mechanism to set state, but it can also be used to emit actions by using the ~:action~ keyword (instead of ~:state~). This can be seen in [[listing-4][listing 4]] in line 24, as a result of user input (button is pressed). The emitted action from the button press will then travel upwards until it is caught by a ~core/handle-action~. Like shown in table 1, ~core/handle-action~ takes two parameters, an ~Item~ which to catch actions from and a function, which will be called once an action has been caught. The function has two parameters. First the state (which can again be destructured to ~[outer inner]~) and a message, which will be the emitted action.
 
-Take a look at listing 5 to see our previously in listing 4 defined ~login-information~ component being wrapped by a ~core/handle-action~. First we define some local state (lines 2-3) to keep track of if the button has been pressed. Then inside of that local state we call ~core/handle-action~ (lines 4-11) and give it both an ~Item~ (in the form of a ~core/dynamic~) and a function (lines 10-11). We see that our function sets ~:login-info~ inside of our inner state to the result of the action (line 11). This will cause a redraw of our component (because of the state change) and will hide the ~login-information~ component (lines 7-9).
+Take a look at [[listing-5][listing 5]] to see our previously in [[listing-4][listing 4]] defined ~login-information~ component being wrapped by a ~core/handle-action~. First we define some local state (lines 2-3) to keep track of if the button has been pressed. Then inside of that local state we call ~core/handle-action~ (lines 4-11) and give it both an ~Item~ (in the form of a ~core/dynamic~) and a function (lines 10-11). We see that our function sets ~:login-info~ inside of our inner state to the result of the action (line 11). This will cause a redraw of our component (because of the state change) and will hide the ~login-information~ component (lines 7-9).
 #+CAPTION[Using ~core/handle-action~ to catch actions.]: Wrapping ~login-information~ with ~core/handle-action~ to catch actions and change local state accordingly.
+#+NAME: listing-5
 #+begin_src clojure -n 1
   (def registration
     (core/local-state
@@ -348,9 +353,10 @@ In order to allow for sequential composition we need to make use of both, with a
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something (e.g. ~Just 5~). Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do [[cite:&graham-monads]]. See listing 6 for an example of multiple HTTP operations that all may fail. All we need to worry about is working with the actual type. The responsibility of working with the side-effects is taken away from us.
+A popular monad is the ~Maybe~ type in Haskell. The language doesn't feature a ~null~ value, instead we can use ~Maybe~ to express when a function might return ~Nothing~ or ~Just~ of something (e.g. ~Just 5~). Because this type is a monad we can easily chain it together. This allows us to combine multiple operations that might fail and stop execution in case any of them do [[cite:&graham-monads]]. See [[listing-6][listing 6]] for an example of multiple HTTP operations that all may fail. All we need to worry about is working with the actual type. The responsibility of working with the side-effects is taken away from us.
 
 #+CAPTION[Showcasing the Maybe monad.]: Instead of having to manually check if each operation succeeded, thanks to the ~Maybe~ type and ~>>=~ operator, the chain will stop if any of the calls return a ~Nothing~.
+#+NAME: listing-6
 #+begin_src haskell -n 1
   getUserById "df743aec" >>= getTeamByUser >>= getTeamManagerByTeam >>= getSalaryById
 #+end_src
@@ -363,9 +369,10 @@ Common cases for monads are IO operations, handling of errors, UI work and to es
 :END:
 To be of the monad typeclass the type needs to provide two functions and satisfy three rules [[cite:&haskell-monads]]. The required functions are ~>>=~ (also called ~bind~) and the ~return~ function (sometimes called ~pure~).
 A ~bind~ takes an instance of a monad ~M~ and a function that gets a value ~a~ and returns an instance of type ~M~ with ~a~ inside of it. The result will be a monad ~M~ again. This is what enables us to chain these operations together.
-The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). To better understand the signature, see listing 7 where Haskell notation has been used to spell out the types.
+The second function, the ~return~, takes a value ~a~ and returns a monad ~M~ with value ~a~. As an example ~Just 1~ works like a return, in that we give it a ~1~ and it gives us a ~Maybe~ (with the value of ~1~ inside of it). To better understand the signature, see [[listing-7][listing 7]] where Haskell notation has been used to spell out the types.
 
 #+CAPTION: Haskell notation of the functions ~bind~ and ~return~.
+#+NAME: listing-7
 #+begin_src haskell -n 1
   (>>=) :: M a -> (a -> M b) -> M b
   return :: a -> M a
@@ -398,9 +405,10 @@ Currently, to create a component which initially displays some component and lat
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-The most trivial way to switch between one of two steps is to use an ~if~ statement. While not offering composability, a simple ~if~ statement is highly effective for binary choices. An example can be seen in listing 8, where we implement a guard for the second step shown in figure 2. The first step, ~login-information~ (defined in listing 4), is shown until it emits its inner state. From here on we assume that the component ~verification-code~ exists and works identical to ~login-information~ with the exception of requiring an email string from the previous step. Same is true for ~personal-information~ but without the string requirement.
+The most trivial way to switch between one of two steps is to use an ~if~ statement. While not offering composability, a simple ~if~ statement is highly effective for binary choices. An example can be seen in [[listing-8][listing 8]], where we implement a guard for the second step shown in figure 2. The first step, ~login-information~ (defined in [[listing-4][listing 4]]), is shown until it emits its inner state. From here on we assume that the component ~verification-code~ exists and works identical to ~login-information~ with the exception of requiring an email string from the previous step. Same is true for ~personal-information~ but without the string requirement.
 
 #+CAPTION[Using an ~if~ as a guard.]: An example of using an ~if~ to guard a step from being shown before another is done. This example combines the first and second step shown in figure 2.
+#+NAME: listing-8
 #+begin_src clojure -n 1
   (def login-info-and-verification-code
     (core/local-state
@@ -415,14 +423,15 @@ The most trivial way to switch between one of two steps is to use an ~if~ statem
 	(c/return :state [outer (assoc inner :email (:email ac))])))))
 #+end_src
 
-A construct like this has already been shown in listing 8, to showcase the handling of actions. Now the focus is on the ~if~ and how it can be used to give a binary choice of what is displayed. Like mentioned earlier, this way of managing steps is limiting. It is however also possible to use composition to enable more than just two steps, by using a component as the second step, that again contains an ~if~ structure like this one. And the second step of that ~if~ could again be another ~if~ structure. While functional, readability of the code suffers and keeping track of the entire sequence is challenging, as it can be spread out through the entire codebase. Also, gaining access to previous results (e.g the ~email~ from the first step) might require some further engineering. We will explore what this might look like soon.
+A construct like this has already been shown in [[listing-8][listing 8]], to showcase the handling of actions. Now the focus is on the ~if~ and how it can be used to give a binary choice of what is displayed. Like mentioned earlier, this way of managing steps is limiting. It is however also possible to use composition to enable more than just two steps, by using a component as the second step, that again contains an ~if~ structure like this one. And the second step of that ~if~ could again be another ~if~ structure. While functional, readability of the code suffers and keeping track of the entire sequence is challenging, as it can be spread out through the entire codebase. Also, gaining access to previous results (e.g the ~email~ from the first step) might require some further engineering. We will explore what this might look like soon.
 *** Switch statement
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-If we want more than a binary choice we can use a ~switch~ statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occurred, the inner component changes the state to allow for the next component to be rendered. We can see an example of this in listing 9. We can see the ~switch~ statement (called ~cond~ in ClojureScript) in lines 7-10. The current step and last returned value are saved in local state (lines 2-3) and updated in the last line.
+If we want more than a binary choice we can use a ~switch~ statement in combination with a variable to keep track of state. Once a certain event (like a click on a button) has occurred, the inner component changes the state to allow for the next component to be rendered. We can see an example of this in [[listing-9][listing 9]]. We can see the ~switch~ statement (called ~cond~ in ClojureScript) in lines 7-10. The current step and last returned value are saved in local state (lines 2-3) and updated in the last line.
 
 #+CAPTION: Using a ~switch~ statement so that we can react to state and show the step we want to display.
+#+NAME: listing-9
 #+begin_src clojure -n 1
   (def register
     (core/local-state
@@ -438,9 +447,10 @@ If we want more than a binary choice we can use a ~switch~ statement in combinat
 	(c/return :state [outer (assoc inner :step (inc(:step inner)) :last ac)])))))
 #+end_src
 
-A neat feature of using a ~switch~ is that we can also work non-linear by using something like a keyword instead of a number, as well as adding another ~switch~. Listing 10 shows the same example of listing 9 but with the ability to move non-linear. We could even visit some steps multiple times or loop infinitely. This however has the downside of requiring two ~switch~ statements, meaning any change needs to be implemented and tested in two places.
+A neat feature of using a ~switch~ is that we can also work non-linear by using something like a keyword instead of a number, as well as adding another ~switch~. [[listing-10][Listing 10]] shows the same example of [[listing-9][listing 9]] but with the ability to move non-linear. We could even visit some steps multiple times or loop infinitely. This however has the downside of requiring two ~switch~ statements, meaning any change needs to be implemented and tested in two places.
 
-#+CAPTION: Enhancing listing 9 by adding a second ~switch~ statement to enable non-linear movement.
+#+CAPTION: Enhancing [[listing-9][listing 9]] by adding a second ~switch~ statement to enable non-linear movement.
+#+NAME: listing-10
 #+begin_src clojure -n 1
   (def register
     (core/local-state
@@ -462,20 +472,21 @@ A neat feature of using a ~switch~ is that we can also work non-linear by using 
 				   :personal :login) :last ac)])))))
 #+end_src
 
-In both listing 9 and 10 we already see the advantage of the loose coupling we can achive thanks to actions in reacl-c. An implementation in React would require callbacks to handle the communication between steps and the parent component that holds them. This not only could lead to bugs, as the callback is incorrectly setup or handled, but also means every single step needs to be build to accomidate a callback.
+In both [[listing-9][listing 9]] and [[listing-10][10]] we already see the advantage of the loose coupling we can achive thanks to actions in reacl-c. An implementation in React would require callbacks to handle the communication between steps and the parent component that holds them. This not only could lead to bugs, as the callback is incorrectly setup or handled, but also means every single step needs to be build to accomidate a callback.
 
 The intuitive and straightforward way we can work with ~switch~ statements make it a popular choice for sequences like this. While reacl-c removes a lot of the edge cases by eliminating callbacks entirely, this structure still suffers from some shortcomings. While possible to make this composable (e.g using callbacks or actions), it's neither immediately obvious how nor without issues. It is once again worth mentioning, to make this composible would be much more work in React, as we have the advantage of actions here.
 
-To make it composable we could add behavior that emits the last result upwards one more time (in the last line of listings 9, 10), so that we can catch it in a future ~switch~ structure, that could be wrapped around this (e.g ~register~ in listings 9, 10). While this would lead to the same spread out code of the previously mentioned nested ~if~ structures, it does have the desired effect of making it composible, in the sense that we can add things infinitely.
+To make it composable we could add behavior that emits the last result upwards one more time (in the last line of listings [[listing-9][9]], [[listing-10][10]]), so that we can catch it in a future ~switch~ structure, that could be wrapped around this (e.g ~register~ in listings [[listing-9][9]], [[listing-10][10]]). While this would lead to the same spread out code of the previously mentioned nested ~if~ structures, it does have the desired effect of making it composible, in the sense that we can add things infinitely.
 A big issue is the amount of boilerplate needed to produce such a structure. Having to write +16 lines of code for three simple steps will add up. A long sequence of 9 steps composed by 3 x 3 compositions would be more than 48 lines of code, for logic that defines an order of 9 steps.
 The overall impression is that with a ~switch~ structure simple things are easily done, but complex structures lead to problems.
 *** Callbacks
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-Earlier we mentioned that the structure using an ~if~ statement could be enhanced to be composible, by using callbacks. Listing 11 shows the previously in listing 8 defined ~login-info-and-verification-code~ component now enhanced for an arbitrary next component. It goes further by constructing the entire sequence (lines 13-14) shown in [[seq-comp][figure 2]] and implemented in listing 9 & 10.
+Earlier we mentioned that the structure using an ~if~ statement could be enhanced to be composible, by using callbacks. [[listing-11][Listing 11]] shows the previously in [[listing-8][listing 8]] defined ~login-info-and-verification-code~ component now enhanced for an arbitrary next component. It goes further by constructing the entire sequence (lines 13-14) shown in [[seq-comp][figure 2]] and implemented in [[listing-9][listing 9]] & [[listing-10][listing 10]].
 
 #+CAPTION: Building the sequence shown in [[seq-comp][figure 2]], under the assumption that the component ~verification-code-with-cb~ exists and works the same as ~login-info-with-cb~.
+#+NAME: listing-11
 #+begin_src clojure -n 1
   (defn-item login-info-with-cb [callback]
     (core/local-state
@@ -517,8 +528,9 @@ While these are solid requirements we also need to keep in mind that our sequent
 :UNNUMBERED: t
 :END:
 Unlike parallel composition (where we can look to reacl-c and React for references) there are few examples to go off of when it comes to our sequential composition. Because of this it makes sense to draw inspiration from other, already well established, functions.
-ClojureScript provides something that allows us to define things in a neat way with the ~let~ function [[cite:&clojure-let-code]]. As seen in listing 12, a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed. We will take a closer look at how ~let~ achieves this, towards the end of this thesis.
+ClojureScript provides something that allows us to define things in a neat way with the ~let~ function [[cite:&clojure-let-code]]. As seen in [[listing-12][listing 12]], a ~let~ is composed of two parameters. The first parameter is a list of ~key:value~ pairs, where a ~key~ is nothing but a name for a symbol that will be used within the ~let~ and ~value~ is the actual value of that ~key~. The second parameter, also called body, is a function which has access to the previously defined keys. It will be run once all the ~values~ have been computed. We will take a closer look at how ~let~ achieves this, towards the end of this thesis.
 #+CAPTION[Using ~let~ to bind values to the names ~one~, ~two~, ~three~.]: Using ~let~ to bind values to the names ~one~, ~two~, ~three~. The body is the last line, which is an operation that returns ~6~.
+#+NAME: listing-12
 #+begin_src clojure -n 1
   (let [one 1
 	two (+ 1 one)
@@ -526,16 +538,18 @@ ClojureScript provides something that allows us to define things in a neat way w
     (+ one two three))
 #+end_src
 
-Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the form of ~ref-let~ [[cite:&reacl-ref-let]]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. Listings 13 shows how our earlier register example could look like if we used a ~let~ like style. We call ~runner~ and pass our ~key:value~ pairs for each step. Where ~value~ is the actual step and ~key~ is a name which the returned value will be associated with.
+Adopting this style for sequential composition has many benefits. The most obvious is that ClojureScript developers would already be familiar with it. Even reacl-c offers a ~let~ style macro in the form of ~ref-let~ [[cite:&reacl-ref-let]]. It also satisfies a lot of our requirements, like being able to access prior results and only executing one pair at a time. [[listing-13][Listing 13]] shows how our earlier register example could look like if we used a ~let~ like style. We call ~runner~ and pass our ~key:value~ pairs for each step. Where ~value~ is the actual step and ~key~ is a name which the returned value will be associated with.
 Note how little code is needed. This example still closely follows ~let~ in that it needs an uneven amount of arguments, in which the last is a function that will be executed (with access to all the previously declared ~keys~) at the end.
 #+CAPTION[Showcase earlier registration process in a ~let~ style.]: Earlier register example written in a ~let~ style. ~personal~, ~verification~ are now names for the returned values of their respective steps, that can be used to access these values further down.
+#+NAME: listing-13
 #+begin_src clojure -n 1
   (runner [personal (personal-info)
 	   verification (verification-code personal)]
 	  (personal-information))
 #+end_src
-A possible alternative to this would be to omit the body function entirely and instead use the element previously placed in the body (~personal-information~ in our example), as the last element in our ~key:value~ pairs list. See listing 14 for an example. While not commonly used like this, ~let~ also allows for this style. This has the benefit of creating a concise and consistent look and feel.
-#+CAPTION: Register example of listing 13 now in ~let~ style without a body function.
+A possible alternative to this would be to omit the body function entirely and instead use the element previously placed in the body (~personal-information~ in our example), as the last element in our ~key:value~ pairs list. See [[listing-14][listing 14]] for an example. While not commonly used like this, ~let~ also allows for this style. This has the benefit of creating a concise and consistent look and feel.
+#+CAPTION: Register example of [[listing-13][listing 13]] now in ~let~ style without a body function.
+#+NAME: listing-14
 #+begin_src clojure -n 1
   (runner [personal (personal-info)
 	   verification (verification-code personal)
@@ -543,9 +557,10 @@ A possible alternative to this would be to omit the body function entirely and i
 #+end_src
 The ~runner~ function executes our composition and should be able to be used just like a regular ~Item~ when wanted. It should be further composibly in parallel with other ~Items~ and actions should be able to be caught from it.
 
-Our ~runner~ looks like a shortened ~switch~ structure. To enable composition, we will make use of monads. Each step on the inside will be able to be further composed, by using the ~bind~ function (to compose multiple steps together) and ~return~ (to create a composible type). Developers can use these functions to build up their sequential compositions outside of the ~runner~. The ~runner~ itself will then run these compositions, as well as the compositions provided via the ~key:value~ pairs. Listing 15 shows another way for us to express our sequential composition, using the ~bind~ function. Developers will be able to mix the two styles interchangeably.
+Our ~runner~ looks like a shortened ~switch~ structure. To enable composition, we will make use of monads. Each step on the inside will be able to be further composed, by using the ~bind~ function (to compose multiple steps together) and ~return~ (to create a composible type). Developers can use these functions to build up their sequential compositions outside of the ~runner~. The ~runner~ itself will then run these compositions, as well as the compositions provided via the ~key:value~ pairs. [[listing-15][Listing 15]] shows another way for us to express our sequential composition, using the ~bind~ function. Developers will be able to mix the two styles interchangeably.
 
-#+CAPTION: Listing 14 implemented using just ~bind~.
+#+CAPTION: [[listing-14][Listing 14]] implemented using just ~bind~.
+#+NAME: listing-15
 #+begin_src clojure -n 1
   (runner
    [_ (bind
@@ -616,18 +631,20 @@ It takes a single ~Bind~ (or ~Prog~) as an argument, which could contain further
 :END:
 ~show~ extracts the ~Item~ from the passed parameter, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~ and displays it. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emitted ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
 ** Building sequences with our API
-Having now seen our API we'd like to show how we can build the previously in [[seq-comp][figure 2]] described sequence, by using our API. For that, we're going to use our enhanced versions of ~runner~ and ~then~ first. Listing 16 shows the relevant code.
+Having now seen our API we'd like to show how we can build the previously in [[seq-comp][figure 2]] described sequence, by using our API. For that, we're going to use our enhanced versions of ~runner~ and ~then~ first. [[listing-16][Listing 16]] shows the relevant code.
 #+CAPTION: Using our enhanced API to implement the register sequences from [[seq-comp][figure 2]].
+#+NAME: listing-16
 #+begin_src clojure -n 1
   (def register-steps
     (then [personal (login-information)
 	   verification (verification-code (:email personal))
 	   info (personal-information)]))
 #+end_src
-Thanks to ClojureScript's extensive feature-set we can make our API look identical to what we envisioned in listing 13.
+Thanks to ClojureScript's extensive feature-set we can make our API look identical to what we envisioned in [[listing-13][listing 13]].
 
-A similar version of listing 16 can be seen in listing 17, where we use our primitive ~-then~ instead. Notice that we also need to wrap our components (line 3, 5, 7) in ~return~, to turn them into ~Progs~.
+A similar version of [[listing-16][listing 16]] can be seen in [[listing-17][listing 17]], where we use our primitive ~-then~ instead. Notice that we also need to wrap our components (line 3, 5, 7) in ~return~, to turn them into ~Progs~.
 #+CAPTION[Using primitives provided by our API to implement the registration process.]: Using primitives provided by our API to implement the register sequences from figure 2.
+#+NAME: listing-17
 #+begin_src clojure -n 1
   (def register-steps
     (-then
@@ -642,9 +659,10 @@ Primitives and enhanced functions can be used interchangeably. We will see how d
 
 The (parallely composed) components that we use need a slight change to work with our API. If they want to trigger the next step, they cannot just emit any value, but rather need to emit a ~Commit~ that contains that value. A ~Commit~ can be built by using the ~make-commit~ constructor.
 
-Obviously it is possible to take our ~register-steps~ (which now is a ~Prog~) and further compose it. Listing 18 shows how we can add another step. This again works interchangeably with enhanced and primitives.
+Obviously it is possible to take our ~register-steps~ (which now is a ~Prog~) and further compose it. [[listing-18][Listing 18]] shows how we can add another step. This again works interchangeably with enhanced and primitives.
 
-#+CAPTION[Further composing ~register-steps~.]: Adding another step to the previously in listing 17 defined ~register-steps~. Assuming ~show-legal-notice~ is an already defined component.
+#+CAPTION[Further composing ~register-steps~.]: Adding another step to the previously in [[listing-17][listing 17]] defined ~register-steps~. Assuming ~show-legal-notice~ is an already defined component.
+#+NAME: listing-18
 #+begin_src clojure -n 1
   (def register-steps-with-legal
     (-then (register-steps)
@@ -692,8 +710,9 @@ The API will enable developers to not specify a continuation, but it’ll actual
 * Implementation
 Previously we have discussed which functions our API should offer. Now we will focus on implementing these functions and their associated features. Aside from delivering the necessary functionality, we will also talk about optimizing the ~runner~ function and implementing macros for ease of use. The entire source code for our implementation can be found here [[cite:&seq-comp-reacl-c]].
 ** return & -then
-The ~-then~ is arguably the most important function as it needs to compose steps together. However, the idea behind it is trivial to understand. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. Listing 19 shows the definition of the ~Bind~ record type as well as the ~return~ function, which is just a constructor for our ~Bind~ type.
+The ~-then~ is arguably the most important function as it needs to compose steps together. However, the idea behind it is trivial to understand. Take a ~Prog~ and a ~continuation~ and return a ~Bind~, which is nothing but a container ~record~ type that holds both of these values. [[listing-19][Listing 19]] shows the definition of the ~Bind~ record type as well as the ~return~ function, which is just a constructor for our ~Bind~ type.
 #+CAPTION: Record definition of the ~bind~ type and a our ~return~ function.
+#+NAME: listing-19
 #+begin_src clojure -n 1
   (defrecord Bind [prog cont])
 
@@ -709,8 +728,9 @@ If that is the case, ~-then~ needs to change the order of execution, to prevent 
 [[./images/cps-transformation.png]]
 This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ trivial. It also guarantees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
 
-Now, inside of our ~-then~ function we need to handle both cases. For this we differentiate between a ~-then~ call where A: a ~Prog~ is passed or B: where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CPS-transformation. See listing 20 for the previously described code.
+Now, inside of our ~-then~ function we need to handle both cases. For this we differentiate between a ~-then~ call where A: a ~Prog~ is passed or B: where a ~Bind~ is passed. If a ~Prog~ is passed, we just wrap the parameters and return a ~Bind~. If however a ~Bind~ is passed, we do our CPS-transformation. See [[listing-20][listing 20]] for the previously described code.
 #+CAPTION[Definition of the ~-then~ function.]: Definition of the ~-then~ function. The CPS-transformation can be seen in line 7, as the previous ~Bind~ and new ~Bind~ are first deconstructed and then reconstructed into a new ~Bind~.
+#+NAME: listing-20
 #+begin_src clojure -n 1
   (defn -then [prog cont]
     (if (bind? prog)
@@ -725,8 +745,9 @@ The place for our monad to be executed in is the ~-runner~. It will receive a ~P
 3. Catch emitted ~Commits~
 4. Make sure implicit state is passed to the ~Prog~ (without leaking own state)
 5. And optimize function calls to prevent stackoverflow
-As such we will show the code in its entirety once in listing 21 and go in depth about individual parts one after another.
+As such we will show the code in its entirety once in [[listing-21][listing 21]] and go in depth about individual parts one after another.
 #+CAPTION[The definition of the ~runner~ function.]: The entire definition of the ~runner~ function using trampolines, state-management, lenses and actions.
+#+NAME: listing-21
 #+begin_src clojure -n 1
   (defn -runner [p]
     {:pre [(or (bind? p) (prog? p))]}
@@ -748,7 +769,7 @@ As such we will show the code in its entirety once in listing 21 and go in depth
 :UNNUMBERED: t
 :END:
 The goal of the ~-runner~ is to hold and display what is inside of a ~Bind~ (or ~Prog~). While it does this, it wraps the ~Bind~ and waits for a ~Commit~ which will trigger it to call the ~continuation~ of the ~Bind~.
-To understand this better we're going to focus on lines 7-14 of listing 21. First notice the ~core/handle-action~ call. We pass a ~core/focus~ function to focus the state on a specific part. Namely limiting the implicitly passed state to what is outside of the runner, instead of leaking the bookkeeping state of the ~-runner~ downwards. This function again takes two parameters. First a lens (function of two arities) and second an ~Item~. We will talk more about the lense in the next chapter.
+To understand this better we're going to focus on lines 7-14 of [[listing-21][listing 21]]. First notice the ~core/handle-action~ call. We pass a ~core/focus~ function to focus the state on a specific part. Namely limiting the implicitly passed state to what is outside of the runner, instead of leaking the bookkeeping state of the ~-runner~ downwards. This function again takes two parameters. First a lens (function of two arities) and second an ~Item~. We will talk more about the lense in the next chapter.
 The second parameter is the ~show~ function defined in our API, which just takes either ~Bind~, ~Prog~ or ~Item~ and unwraps it to an ~Item~ again.
 From this point on we can talk about the function that was passed to the ~handle-action~, which takes up lines 11-14. Like mentioned earlier, that function has two parameters. First is the state of the ~-runner~ at the moment at which the action was emitted from the ~Item~. We have access to this, so we can reduce the state with the second parameter, the action which the ~Item~ sent, into a new state. We then return that new state with the ~core/return~ function (using the ~:state~ keyword). This lets the component know that it needs to update its state, therefore render itself again. In the parameter definition of our function (line 11) the state is destructured into the outer state, which was implicitly passed to our ~-runner~ and the state of the ~-runner~ itself (here named ~st~). In line 12 we have a check to confirm the ~Item~ sent us an action that is a ~Commit~. If it isn't a ~Commit~, the action will propagate further upwards because of the ~core/return~ call in line 14. We also check if our current state holds a ~Bind~, because only if we have a ~Bind~, can we call a ~continuation~. In line 13 we then call the ~continuation~ of our ~Bind~ with the payload of the ~Commit~ and return it as state of our ~-runner~.
 *** Using lenses to hide state
@@ -759,8 +780,9 @@ The previously mentioned lens in line 9 is needed to stop leaking the bookkeepin
 Lenses are a popular mechanism in functional programming to, on one side, restrict the available information, while allowing changes from the restricted side to change the whole, as well.
 It does this by providing two functions: Yanker and shover. The yanker grants access to parts of the whole. If parts of that whole are changed, the shover is called to marry that part again with the whole, so the update can trickle upwards again.
 Our lens is a "first lense", because it restricts access to anything but the ~first~ element. This is relevant because when state is passed around in reacl-c, it usually comes in the form of a list where the ~first~ element is the outer and the second element is the inner state.
-The code for the ~first-lens~ can be found in listing 22.
+The code for the ~first-lens~ can be found in [[listing-22][listing 22]].
 #+CAPTION[Explaining the ~first-lens~.]: Elements of the list are destructured into ~first~ and ~rest~, where on the yanker side ~rest~ is discarded and on the shover side ~first~ is ignored in favor of ~small~. ~small~ represents the previously passed ~first~, which now has been updated by the restricted side.
+#+NAME: listing-22
 #+begin_src clojure
   (defn first-lens
     ([[first & _]]
@@ -784,8 +806,9 @@ It is therefore important to add code to our bind logic, to allow us to implemen
 While ClojureScript isn't offering TCO out-of-the-box for every function call, it does provide the ~loop~ and ~recur~ functions which do a locale rewrite of the code into a loop [[cite:&learn-clojure-looping]]. This allows for worry free function invocations, no matter the depth.
 ~loop~ provides a perfectly fine way to get the benefits of TCO for synchronizing functions, but in order to work with the asynchronous, action driven, approach that reacl-c uses, a custom implementation needs to be developed.
 
-For our implementation we can leverage the concept of trampolines. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that value instead. That return will then break our loop. Listing 23 shows a crude example written in JavaScript. See [[cite:&schwaighofer-tco]] for a more detailed explanation.
+For our implementation we can leverage the concept of trampolines. Instead of stepping deeper and deeper into nested function calls, the function is called once and the result, which is a function, is saved. Now for as long as the function returns another function, we will call the result. If a value is returned (that isn't a function), we will stop and return that value instead. That return will then break our loop. [[listing-23][Listing 23]] shows a crude example written in JavaScript. See [[cite:&schwaighofer-tco]] for a more detailed explanation.
 #+CAPTION[Example of trampolines in JS.]: Example of trampolines in JS. ~optimized~ calls ~work~ initially and loops for as long as it returns a ~function~.
+#+NAME: listing-23
 #+begin_src javascript
   function work(y) {
       return (y === 0) ? true : () => work(y-1);
@@ -798,12 +821,13 @@ For our implementation we can leverage the concept of trampolines. Instead of st
   }
 #+end_src
 
-Having a basic understanding of trampolines, we can return to our implementation and take a deeper look at how we implemented TCO. Let's examine listing 21 again in more detail:
+Having a basic understanding of trampolines, we can return to our implementation and take a deeper look at how we implemented TCO. Let's examine [[listing-21][listing 21]] again in more detail:
 In our ~-runner~ we define the ~Prog~ that was passed into the function (named just ~p~) as local state using the ~core/local-state~ function (lines 3-4). This is the first part of our trampoline. Next we call ~core/dynamic~, which takes a function that has one parameter. That parameter will be the state of our component, which is why we destructure it in line 6 to ~outer~ (which is immediately discarded with ~_~) and ~inner~ (which is kept). This is clever, as we now have access to the state of our ~-runner~ component, through the parameter of the function. We need to access that state, because we want to both display the ~Prog~ that it holds and wait for it to emit a ~Commit~ (using the ~handle-action~ function).
 Now, in line 11, we define the function that will be called once an action is emitted. If the action is a ~Commit~, we execute the code in line 13. Here we set our state to the result of the ~continuation~ of the ~Prog~ of our ~inner~ state, by calling ~core/return~ with the ~:state~ keyword. With that we complete our trampoline. Because we set our state, the component will be rendered again, this time with the updated state, which is the next step in our sequential composition, because it is the result of the ~continuation~ of our ~Prog~.
 ** show
-To display our sequential composition we can use the ~runner~. If however we just want to display one step (indefinitely), we can use ~show~. This is a simple helper function that is used inside of the ~runner~ to display the ~Bind~. At its core it has a ~cond~ call, which allows us to react to specific conditions. This is necessary, because if we get an ~Item~, we can just display it. If however we get a ~Prog~, we need to unwrap the ~Item~ from it. Furthermore, if we get a ~Bind~, we first need to get the ~Prog~ inside of it, before we can unwrap it. Lastly, to make usage easier, if anything else is passed, we display an empty ~fragment~, which is equivalent to nothing. Getting passed neither ~Prog~ or ~Bind~ is the case after finishing the last ~Bind~. See listing 24 for the entire code of the ~show~ function.
+To display our sequential composition we can use the ~runner~. If however we just want to display one step (indefinitely), we can use ~show~. This is a simple helper function that is used inside of the ~runner~ to display the ~Bind~. At its core it has a ~cond~ call, which allows us to react to specific conditions. This is necessary, because if we get an ~Item~, we can just display it. If however we get a ~Prog~, we need to unwrap the ~Item~ from it. Furthermore, if we get a ~Bind~, we first need to get the ~Prog~ inside of it, before we can unwrap it. Lastly, to make usage easier, if anything else is passed, we display an empty ~fragment~, which is equivalent to nothing. Getting passed neither ~Prog~ or ~Bind~ is the case after finishing the last ~Bind~. See [[listing-24][listing 24]] for the entire code of the ~show~ function.
 #+CAPTION: Code for the ~show~ function.
+#+NAME: listing-24
 #+begin_src clojure
   (defn show
     [x]
@@ -835,8 +859,9 @@ However, while things like binding symbols to values under the hood can be used 
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-We mentioned earlier that we need to use macros to get our ~let~ like structure for our ~runner~. But why is that? Listing 17 shows the previously shown ([[seq-comp][figure 2]]) register process, built up with our primitives (non-macro) ~then~.
+We mentioned earlier that we need to use macros to get our ~let~ like structure for our ~runner~. But why is that? [[listing-17][Listing 17]] shows the previously shown ([[seq-comp][figure 2]]) register process, built up with our primitives (non-macro) ~then~.
 #+CAPTION: Sequential composition using primitive ~then~ with anonymous function calls.
+#+NAME: listing-25
 #+begin_src clojure -n 1
   (-then
    (login-information)
@@ -848,7 +873,7 @@ We mentioned earlier that we need to use macros to get our ~let~ like structure 
 #+end_src
 
 While this already enables sequential composition it is still far off from the easy to read, concise API we had envisioned. The developer needs to create the anonymous functions by hand, everytime. Thankfully, the functionality of binding ~keys~ to ~values~ stays the same, as results of the components, like ~login-information~, will be bound to the parameter in the ~continuation~ (e.g the symbol ~personal~).
-Because this is functionally identical we can write a macro to translate the code in listing 25 into the desired ~let~ like structure (seen in listings 13 & 14).
+Because this is functionally identical we can write a macro to translate the code in [[listing-25][listing 25]] into the desired ~let~ like structure (seen in listings [[listing-13][13]] & [[listing-14][14]]).
 Before we dive into the macros themselves, we first need to take a look at how macros in ClojureScript work. This includes both the syntax and the necessary setup to generate macros.
 *** Macro Syntax
 :PROPERTIES:
@@ -878,8 +903,9 @@ There are multiple ways to write a macro for use in ClojureScript. The easiest w
 :UNNUMBERED: t
 :END:
 The goal of our macro is to rewrite the passing of multiple ~Progs~ into a series of ~then~ calls, which then bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~key:value~ pairs to our macro. Internally the macro will change this to correct ClojureScript code. Correct, because just putting undefined symbols into a list like ~[this or that 1]~ wouldn't work.
-Listing 26 hints at what needs to be done.
+[[listing-26][Listing 26]] hints at what needs to be done.
 #+CAPTION[Showcasing what the ~then~ macro does.]: The macro will take care of wrapping ~Progs~ in a ~-then~ and creates an anonymous functions each time (while binding ~keys~ to function parameters)
+#+NAME: listing-26
 #+begin_src clojure -n 1
   ;; Before macro
   (then [x prog1
@@ -892,9 +918,10 @@ Listing 26 hints at what needs to be done.
 	   (-then prog2
 		  (fn [y] prog3))))
 #+end_src
-The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. Listing 27 shows the macro in its entirety. The core idea of the implementation is heavily influenced by Lei Ray's video on "Monads in Clojure" [[cite:&lei-ray-monads-clojure]].
+The strategy will be to generate the anonymous functions and to use the supplied ~keys~ (in our case ~x~ and ~y~) as the parameters of our newly generated anonymous functions. This is possible because we need to supply a ~continuation~ to our ~then~ function anyways. That ~continuation~ can have any amount of parameters, but for this to work we only need to give one. [[listing-27][Listing 27]] shows the macro in its entirety. The core idea of the implementation is heavily influenced by Lei Ray's video on "Monads in Clojure" [[cite:&lei-ray-monads-clojure]].
 
 #+CAPTION[Entire code for the ~then~ macro.]: The entire macro that wraps our ~Progs~ with ~then~ and generates the anonymous functions.
+#+NAME: listing-27
 #+begin_src clojure -n 1
   (defmacro then
     [[var val & rest :as steps] end-expr]
@@ -908,8 +935,9 @@ Our macro takes two arguments. A list of values and an end expression, just like
 After making sure that our list is balanced, meaning it has just as many ~vars~ as ~vals~, we check if we have ~steps~ left. ~Steps~ is just a reference to our ~var~ and ~val~, as well as ~rest~. If that is the case, we stop execution of our code with the ~\`~ symbol and begin to build the macro part of our function. We want to call the primitive ~then~ from our ~bind~ namespace, like mentioned earlier, to do this we need to spell out the entire namespace, as we're currently in a ~.clj~ file and cannot import the ~.cljs~ namespace.
 Our primitive ~then~ takes two parameters. First a ~Prog~ and second a ~continuation~ function. We use the ~\~~ symbol to undo the syntax quote and pass the ~val~ as is. Then we continue and build our anonymous function. For our macro to work just like ~let~ we need to pass our ~var~, which stands for our symbol (e.g. ~x~ and ~y~ ), as the parameter of our anonymous function. We again undo the syntax quoting using ~\~~, so our actual value is being placed.
 Inside of our function we then do a recursive call to our macro, once again undoing the syntax quoting to pass the ~rest~ value of our list and our ~end-expr~ (which is wrapped by a list, to stop it from being executed by ClojureScript). Our ~end-expr~ will be executed once we've worked through all ~steps~. Important to remember is that ~end-expr~ itself might try to access the symbols given in to our ~then~. This now works, because ~end-expr~ is at the bottom of all of our anonymous functions, which provide the context in which these symbols are bound to values. That is because we have actually not executed the code, but transformed it by using syntax quoting.
-See listing 28 to see how the nesting of anonymous functions works out, to allow ~end-expr~ to have access to the symbols at the end.
+See [[listing-28][listing 28]] to see how the nesting of anonymous functions works out, to allow ~end-expr~ to have access to the symbols at the end.
 #+CAPTION: Example of where ~end-expr~ will be executed.
+#+NAME: listing-28
 #+begin_src clojure -n 1
   (then prog1
 	(fn [x]
@@ -926,8 +954,9 @@ Now our ~then~ macro can be called exactly like we would with ~let~, simply by d
 :UNNUMBERED: t
 :END:
 With our ~then~ we have greatly improved the desired developer experience, however, the result still returns a ~Bind~. That is fine, as we might want to further compose this. However, we still need to wrap our ~then~ expression with a ~runner~ to run it. To further simplify the experience we will create another macro, this time for the ~runner~ function to give developers the option to do everything within a single call.
-For this we will simply wrap our ~then~ macro with our primitive ~runner~ from the ~bind~ namespace. Again we syntax quote our call and undo the quote for our values. To add even more convenience our ~runner~ macro has an arity of two. If the developer is not interested in supplying an ~end-expr~ function, we will pass an empty function into the ~then~ for them. The resulting code is simple but works exactly as we want it to and can be seen in listing 29.
+For this we will simply wrap our ~then~ macro with our primitive ~runner~ from the ~bind~ namespace. Again we syntax quote our call and undo the quote for our values. To add even more convenience our ~runner~ macro has an arity of two. If the developer is not interested in supplying an ~end-expr~ function, we will pass an empty function into the ~then~ for them. The resulting code is simple but works exactly as we want it to and can be seen in [[listing-29][listing 29]].
 #+CAPTION: Definition of the ~runner~ macro.
+#+NAME: listing-29
 #+begin_src clojure -n 1
   (defmacro runner
     ([x]
@@ -941,15 +970,17 @@ While the current implementation achieves what it set out to do, some compromise
 * Examples
 With our API now defined and implemented we can take a look at some examples.
 ** Register sequence
-Our initial example, to explain what sequential composition is, was a register component. That makes sense because modern register processes are often split up into multiple parts. Lets build that three step register process again, this time with our API. Listing 30 shows the sequential composition, which looks both similar to what we previously saw in listing 16, when examining the API and to listing 14, where we thought up this style of sequential composition. It also looks identical to a ~let~ call.
+Our initial example, to explain what sequential composition is, was a register component. That makes sense because modern register processes are often split up into multiple parts. Lets build that three step register process again, this time with our API. [[listing-30][Listing 30]] shows the sequential composition, which looks both similar to what we previously saw in [[listing-16][listing 16]], when examining the API and to [[listing-14][listing 14]], where we thought up this style of sequential composition. It also looks identical to a ~let~ call.
 #+CAPTION: Example usage of our API for the sign-up sequence shown in [[seq-comp][figure 2]].
+#+NAME: listing-30
 #+begin_src clojure -n 1
   (runner [personal (personal-info)
 	   code (verification-code (:email personal))
 	   _ (personal-information)])
 #+end_src
-The only necessary change inside of our components is to emit a ~Commit~. See listing 31 for this, where we change the behavior of the ~personal-info~ component by returning a commit in line 8, instead of just a value.
+The only necessary change inside of our components is to emit a ~Commit~. See [[listing-31][listing 31]] for this, where we change the behavior of the ~personal-info~ component by returning a commit in line 8, instead of just a value.
 #+CAPTION[Excerpt of the ~personal-info~ component.]: Excerpt of the ~personal-info~ component. Parts have been removed for clarity's sake. This is a parallel composition that emits a ~Commit~ once the user presses the button.
+#+NAME: listing-31
 #+begin_src clojure -n 1
   (core/defn-item personal-info
     (core/local-state
@@ -963,8 +994,9 @@ The only necessary change inside of our components is to emit a ~Commit~. See li
 #+end_src
 This is all that is needed to create our sign-up process. The ~runner~ can now be placed into a parallel composition.
 ** Endless loop
-Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how many times we have looped. Listing 32 shows an example of an infinite loop using our macros.
+Because our ~then~ takes a ~continuation~ for its next step, it's trivial to create an infinite loop. Our macros make this even easier, by abstracting boilerplate code away from us. And because our ~runner~ implemented TCO, we can be sure that our stack won't blow, no matter how many times we have looped. [[listing-32][Listing 32]] shows an example of an infinite loop using our macros.
 #+CAPTION: Example of an infinite loop using our API.
+#+NAME: listing-32
 #+begin_src clojure -n 1
   (defn infinite-loop [n]
     (then [a (item n) ;; helper function which creates Prog
@@ -977,8 +1009,9 @@ It could be possible that there is an even compactor way, however this implement
 While there probably is an even shorter way of achieving an infinite loop, this implementation is small enough for now. The ~infinite-loop~ function calls itself recursively inside of our ~then~ (line 3). That infinite construct is then placed within a runner (last line).
 Worth of note is that the recursive call still receives an integer from the previous step. Also, because this loop never ends, the developer can use ~_~ to ignore its result, like they would also do with a function parameter.
 ** Re-using compositions
-Using just the ~then~ macro (without the ~runner~), we can save a sequential composition to use it again in multiple places. Because the ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See listing 33 for an example of an order process, in which the selection of the product is defined outside of the ~runner~.
+Using just the ~then~ macro (without the ~runner~), we can save a sequential composition to use it again in multiple places. Because the ~runner~ does nothing but call ~then~ under the hood, which in turn takes ~Progs~, we can further compose inside of our ~runner~. See [[listing-33][listing 33]] for an example of an order process, in which the selection of the product is defined outside of the ~runner~.
 #+CAPTION: Using ~then~ and ~def~ to define a shareable sequential composition.
+#+NAME: listing-33
 #+begin_src clojure -n 1
   (def burger-selection
     (then [size size-selection
@@ -994,8 +1027,9 @@ Using just the ~then~ macro (without the ~runner~), we can save a sequential com
 #+end_src
 Note that we lose track of accessing the results of the previous sequential composition, which happened in the first ~then~. We do, however, technically have access to them, but the keyword (e.g ~size~) isn't shown to the developer, which means they probably forget about it. Therefore we have to use the ~end-expr~ of our first ~then~ (line 5), to gain access to these values again in the following composition (e.g ~order~ in line 9).
 ** Mixing primitives and macros
-Because our macros don't add additional logic, we can mix primitives and macros! In listing 34 we use our primitive ~then~ inside of our macro ~runner~ (lines 3-5). Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
+Because our macros don't add additional logic, we can mix primitives and macros! In [[listing-34][listing 34]] we use our primitive ~then~ inside of our macro ~runner~ (lines 3-5). Note how we can still access the previously defined symbols (e.g ~a~, ~b~) inside of our primitives.
 #+CAPTION[Showcasing composition by using the primitive ~then~.]: Showcasing composition by using the primitive ~then~ to first compose a complex structure, before inserting it into our macro ~runner~.
+#+NAME: listing-34
 #+begin_src clojure -n 1
   (def mix-primitives-macros
     (runner [a (item 1)
@@ -1012,9 +1046,10 @@ Let's take a disease testing facility as an example. We're going to model the fo
 2. Select test type and start test
 3. Enter test result
 4. Print, showcase or send result to patient
-Our sequential composition for this process can be seen in listing 35.
+Our sequential composition for this process can be seen in [[listing-35][listing 35]].
 
 #+CAPTION: Example of a system for a facility that is testing for diseases.
+#+NAME: listing-35
 #+begin_src clojure -n 1
   (def test-patient-steps
     (then [personal-info acquire-personal-info
