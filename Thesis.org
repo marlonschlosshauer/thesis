@@ -1035,12 +1035,25 @@ We're pleased with the implementation and are excited to find out what we can bu
 The source code for our implementation can be found here [[cite:&seq-comp-reacl-c]].
 #+LATEX: \newpage
 
+#+LATEX: \renewcommand{\refname}{}
+#+LATEX: \renewcommand{\listfigurename}{}
+#+LATEX: \renewcommand{\listtablename}{}
+#+LATEX: \renewcommand{\listoflistingscaption}{}
+
+* References
+
 bibliographystyle:unsrt
 [[bibliography:./cites.bib]]
 
+* List of Figures
 
 #+LATEX: \listoffigures
 
+* List of Tables
+
 #+LATEX: \listoftables
 
+* List of Listings
+
 #+LATEX: \listoflistings
+
