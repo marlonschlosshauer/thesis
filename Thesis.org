@@ -87,18 +87,20 @@ Mit dieser Arbeit haben wir das Konzept der sequenziellen Komposition erklärt u
 #+LATEX: \newpage
 
 * Introduction
-Components are an important tool in modern frontend development. In modern frameworks like React and Angular we can define something as a component to reuse it multiple times in our applications, encapsulate some style with some functionality or collect multiple elements into a single component. To be more precise, we can compose things in parallel because we can group elements into something that is to work together. An example of a parallel composition would be two input fields and a button, which together define a sign-in component.
+Components are an important tool in modern frontend development. In modern frameworks like React and Angular we can define something as a component to reuse it multiple times in our applications, encapsulate some style with some functionality or collect multiple elements into a single component. To be more precise, we can compose things in parallel because we can group elements into something that is to work together. An example of a parallel composition would be two input fields and a button, which together define a sign-in component, which can be seen in [[par-comp][figure 1]].
 
 #+CAPTION[Example of parallel composition of a sign-in component.]: Example of parallel composition of a sign-in component. The first composition is the result of adding a button and two inputs. We further compose the first composition by adding a headline. That result is then again further composed by adding a logo.
 #+ATTR_LATEX: :width 350px
+#+NAME: par-comp
 [[./images/parallel-composition-highlighted.png]]
 
 However, modern frontend applications have gone beyond just serving static HTML. Websites often act as a digitalization of a workflow, where the order of some steps, as in which component is shown after another, is crucial. This is also a kind of composition. Instead of composing things in parallel, we're composing sequentially here. That is to say, we say which steps we have and in what order they appear. Together they form a sequence.
 It is important to point out that the here mentioned sequentiality is different from how we might know it from imperative programming (IP). In IP, sequentiality is used, even if the domain doesn't demand it, because of its writing style. We could call this accidental sequentiality, as it is only a by-product of language design and history, rather than a conscious engineering decision.
 Because our sequential composition exhibits natural sequentiality (e.g first step ~A~, then step ~B~) we also want to represent that in our code.
-An example of a sequential composition would be to first ask the user for their email address, then, after having the user enter a valid email, show another input field, where the the user can enter a code that was sent to them, using their email. Notice that the second step can depend on information that was gathered by the previous step.
+An example of a sequential composition would be to first ask the user for their email address, then, after having the user enter a valid email, show another input field, where the the user can enter a code that was sent to them, using their email. Notice that the second step can depend on information that was gathered by the previous step. This example can be seen in [[par-comp][figure 2]].
 
 #+CAPTION[Example of sequential composition of a register component.]: Example of sequential composition of a register component. The first composition combines two steps, before being again further composed by adding a third step.
+#+NAME: seq-comp
 #+ATTR_LATEX: :width 350px
 [[./images/sequential-composition-highlighted.png]]
 
@@ -123,8 +125,8 @@ To best understand how our sequential composition might work, we first need to g
 ** What is React
 React is a popular UI framework developed by Meta (formerly Facebook) and is written in JavaScript. It is important for us to understand, because the framework that we're going to work in, reacl-c, is based on React and as a result inherits a lot of its ideas.
 React, like many other modern JavaScript frameworks, is a Single-Page-Application (SPA), which means the entire application is loaded and available after visiting a single page. Instead of having each page defined in HTML, developers are able to define all pages in JavaScript, using Reacts JavaScript Syntax Extension (JSX). React takes those JSX definitions and builds HTML accordingly, before adding it to the browser's DOM.
-An example of JSX can be seen in listing 1, which shows how the register component shown in figure 1 could be implemented in React.
-#+CAPTION[Defining the register component shown in figure 1.]: Defining the register component shown in figure 1. JSX allows developers to work with HTML and JS in the same file. Note the ability to call previously defined components, like they're HTML elements (lines 17, 26).
+An example of JSX can be seen in listing 1, which shows how the register component shown in [[par-comp][figure 1]] could be implemented in React.
+#+CAPTION[Defining the register component shown in figure 1.]: Defining the register component shown in [[par-comp][figure 1]]. JSX allows developers to work with HTML and JS in the same file. Note the ability to call previously defined components, like they're HTML elements (lines 17, 26).
 #+begin_src javascript -n 1
   const registerInputs = () => {
       const [email, setEmail] = useState();
@@ -172,9 +174,11 @@ To make composing of ~Items~ easier reacl-c takes a different approach to state 
 
 Another key difference to React, is that ~Items~ can emit actions if an event occurs inside of them. These actions propagate upward the item tree. Every item can register an action handler, which captures the action and reacts to it. This enables the developer to define a (child) ~item~ completely independently from their potential future parents, leading to more reusable and more composable components.
 Instead of having the parent pass down a function to, e.g manipulate state, the component can emit an action upwards and trigger the same functionality in the parent. Another benefit is that the parent component can adapt the output of the emitted action further.
+[[inversion-emit][Figure 3]] shows the inversion of control by comparing emitting of actions to passing down callbacks. Each circle represents a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
 
-#+CAPTION[Showcasing inversion of control with actions.]: Showcasing the inversion of control by comparing emitting of actions to passing down callbacks. Each circle represents a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
+#+CAPTION: Showcasing the inversion of control possible thanks to actions.
 #+ATTR_LATEX: :width 350px
+#+NAME: inversion-emit
 [[./images/emit-vs-callback.png]]
 
 As an example: A button toggles an option flag from ~true~ to ~false~ and back. The state for this option is put into the parent, our button is a toggle component which will be reused across the application. In React, the button needs to receive a function which to callback, after the button has been pressed. In reacl-c the button does not need to receive anything from the outside world, as the button emits an action when pressed, which the parent can capture and act upon. See listing 2 for an example of a button that works like that, in reacl-c.
@@ -244,7 +248,7 @@ Behind the calls to the ~dom~ namespace are ~Item~ constructors, which can also 
 
 There are other functions which, much like ~div~, don't add something visually but change the behavior of the ~Item~. Functions like ~core/focus~, ~core/dynamic~ and ~core/handle-actions~, to just name a few. We will take a closer look at each soon. A working example of one of the components in the registration sequence of figure 2  can be seen in listing 4. We will use this listing to examine more of reacl-c's API.
 
-#+CAPTION[A complete example of the first step shown in figure 2.]: A complete example of the first step shown in figure 2. Previously defined in listing 3 but without state or any form of interactivity. Now thanks to ~core/local-state~, ~core/dynamic~ and ~core/return~ the ~Item~ has state that is manipulated by user input.
+#+CAPTION[A complete example of the first step shown in figure 2.]: A complete example of the first step shown in [[seq-comp][figure 2]]. Previously defined in listing 3 but without state or any form of interactivity. Now thanks to ~core/local-state~, ~core/dynamic~ and ~core/return~ the ~Item~ has state that is manipulated by user input.
 #+begin_src clojure -n 1
   (core/defn-item login-information []
     (dom/div
@@ -469,9 +473,9 @@ The overall impression is that with a ~switch~ structure simple things are easil
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-Earlier we mentioned that the structure using an ~if~ statement could be enhanced to be composible, by using callbacks. Listing 11 shows the previously in listing 8 defined ~login-info-and-verification-code~ component now enhanced for an arbitrary next component. It goes further by constructing the entire sequence (lines 13-14) shown in figure 2 and implemented in listing 9 & 10.
+Earlier we mentioned that the structure using an ~if~ statement could be enhanced to be composible, by using callbacks. Listing 11 shows the previously in listing 8 defined ~login-info-and-verification-code~ component now enhanced for an arbitrary next component. It goes further by constructing the entire sequence (lines 13-14) shown in [[seq-comp][figure 2]] and implemented in listing 9 & 10.
 
-#+CAPTION: Building the sequence shown in figure 2, under the assumption that the component ~verification-code-with-cb~ exists and works the same as ~login-info-with-cb~.
+#+CAPTION: Building the sequence shown in [[seq-comp][figure 2]], under the assumption that the component ~verification-code-with-cb~ exists and works the same as ~login-info-with-cb~.
 #+begin_src clojure -n 1
   (defn-item login-info-with-cb [callback]
     (core/local-state
@@ -612,8 +616,8 @@ It takes a single ~Bind~ (or ~Prog~) as an argument, which could contain further
 :END:
 ~show~ extracts the ~Item~ from the passed parameter, allowing it to be displayed. If it's a ~Prog~ it just takes the ~Item~ inside of the ~Prog~ and displays it. If it is a ~Bind~, it first takes the ~Prog~ inside, then shows the ~Item~. If an ~Item~ is passed, the same ~Item~ will be returned. Show serves as one of two ways to turn a sequential composition back into a parallel one. This however does not capture any emitted ~commits~. If the execution of sequential composition is desired, ~runner~ should be used instead.
 ** Building sequences with our API
-Having now seen our API we'd like to show how we can build the previously in figure 2 described sequence, by using our API. For that, we're going to use our enhanced versions of ~runner~ and ~then~ first. Listing 16 shows the relevant code.
-#+CAPTION: Using our enhanced API to implement the register sequences from figure 2.
+Having now seen our API we'd like to show how we can build the previously in [[seq-comp][figure 2]] described sequence, by using our API. For that, we're going to use our enhanced versions of ~runner~ and ~then~ first. Listing 16 shows the relevant code.
+#+CAPTION: Using our enhanced API to implement the register sequences from [[seq-comp][figure 2]].
 #+begin_src clojure -n 1
   (def register-steps
     (then [personal (login-information)
@@ -698,9 +702,10 @@ The ~-then~ is arguably the most important function as it needs to compose steps
 #+end_src
 
 However, just getting a ~Prog~ every time would be of little use. A ~Prog~ just contains a single step. Things get interesting if we want to pass a ~Bind~, because we cannot just wrap the ~Bind~ again, as it already contains a ~Prog~.
-If that is the case, ~-then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and bookkeeping purposes (see Tail Recursion Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use Continuation Passing Style (CPS) Transformations to swiftly change our previous ~continuation~ into something that gets rid of incorrectly nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the ~continuation~ of the passed ~Bind~ with what is passed to the anonymous function (to create a ~Prog~) and using the passed ~continuation~ as the actual ~continuation~ of the second bind. A visual explanation can be seen in figure 4.
+If that is the case, ~-then~ needs to change the order of execution, to prevent undesirable nesting inside of the ~Bind~. We want our ~Prog~ part of the ~Bind~ to always be shallow for optimization and bookkeeping purposes (see Tail Recursion Optimization). Thanks to the earlier mentioned Law Of Associativity for monads, we can use Continuation Passing Style (CPS) Transformations to swiftly change our previous ~continuation~ into something that gets rid of incorrectly nested calls. This is done by taking the ~Prog~ from the passed ~Bind~ and using it again as our new ~Prog~. The new continuation is an anonymous function which constructs another ~Bind~, by calling the ~continuation~ of the passed ~Bind~ with what is passed to the anonymous function (to create a ~Prog~) and using the passed ~continuation~ as the actual ~continuation~ of the second bind. A visual explanation can be seen in [[csp-transformation][figure 4]].
 #+CAPTION[Using CSP-transformation]: ~Prog 1~ is lifted from the given ~Bind~. The new ~continuation~ is a ~Bind~ out of the previous ~continuation~ and the passed ~continuation~.
 #+ATTR_LATEX: :width 350px
+#+NAME: csp-transformation
 [[./images/cps-transformation.png]]
 This allows us to avoid having to flatten the ~Bind~ anywhere else, which makes showing the ~Item~ inside of the ~Bind~ trivial. It also guarantees that the order of execution will always be correct, thanks to deconstructing the passed ~Bind~ completely.
 
@@ -830,7 +835,7 @@ However, while things like binding symbols to values under the hood can be used 
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-We mentioned earlier that we need to use macros to get our ~let~ like structure for our ~runner~. But why is that? Listing 17 shows the previously shown (figure 2) register process, built up with our primitives (non-macro) ~then~.
+We mentioned earlier that we need to use macros to get our ~let~ like structure for our ~runner~. But why is that? Listing 17 shows the previously shown ([[seq-comp][figure 2]]) register process, built up with our primitives (non-macro) ~then~.
 #+CAPTION: Sequential composition using primitive ~then~ with anonymous function calls.
 #+begin_src clojure -n 1
   (-then
@@ -937,7 +942,7 @@ While the current implementation achieves what it set out to do, some compromise
 With our API now defined and implemented we can take a look at some examples.
 ** Register sequence
 Our initial example, to explain what sequential composition is, was a register component. That makes sense because modern register processes are often split up into multiple parts. Lets build that three step register process again, this time with our API. Listing 30 shows the sequential composition, which looks both similar to what we previously saw in listing 16, when examining the API and to listing 14, where we thought up this style of sequential composition. It also looks identical to a ~let~ call.
-#+CAPTION: Example usage of our API for the sign-up sequence shown in figure 2.
+#+CAPTION: Example usage of our API for the sign-up sequence shown in [[seq-comp][figure 2]].
 #+begin_src clojure -n 1
   (runner [personal (personal-info)
 	   code (verification-code (:email personal))
