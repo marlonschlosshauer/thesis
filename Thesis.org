@@ -173,7 +173,7 @@ To make composing of ~Items~ easier reacl-c takes a different approach to state 
 Another key difference to React, is that ~Items~ can emit actions if an event occurs inside of them. These actions propagate upward the item tree. Every item can register an action handler, which captures the action and reacts to it. This enables the developer to define a (child) ~item~ completely independently from their potential future parents, leading to more reusable and more composable components.
 Instead of having the parent pass down a function to, e.g manipulate state, the component can emit an action upwards and trigger the same functionality in the parent. Another benefit is that the parent component can adapt the output of the emitted action further.
 
-#+CAPTION[Showcasing inversion of control with of actions.]: Showcasing the inversion of control by comparing emitting of actions to passing down callbacks. Each circle represents a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
+#+CAPTION[Showcasing inversion of control with actions.]: Showcasing the inversion of control by comparing emitting of actions to passing down callbacks. Each circle represents a component. To communicate the callbacks need to be passed down. With actions, the children can speak up on their own.
 #+ATTR_LATEX: :width 350px
 [[./images/emit-vs-callback.png]]
 
