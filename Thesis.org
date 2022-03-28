@@ -49,6 +49,7 @@
 #+ATTR_LATEX: :width 150px
 [[./images/hs-og-logo.png]]
 
+#+LATEX: \newgeometry{left=1.6in,right=1.6in}
 #+LATEX: \end{titlepage}
 #+LATEX: \newpage
 
@@ -191,20 +192,35 @@ To make components even more composable the parent can not just control the resu
 
 In React often another package like Redux is used to fix the problem of having to pass-down functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composability of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state, first. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables us to wrap a component with an action handler and place it infinitely in our app without worry, as the component won't affect anything outside of that handler (as long as the handler is setup correctly).
 
-Before we dive deeper into the unique features that reacl-c has to offer, we'd like to give an overview of the most important functions in the form of table 1. We will explain each function further in the coming chapters.
-
-#+CAPTION: Signature and description of the most important reacl-c functions.
-| Name                 | Signature                            | Description                                                                                              |
-| ~core/local-state~   | ~x -> Item -> Item~                  | Makes the first parameter available as inner state inside of the second parameter.                       |
-| ~core/dynamic~       | ~([o, i]) => Item -> Item~           | Gives access to (outer & inner) state inside of the function. The function needs to return an ~Item~.    |
-| ~core/handle-action~ | ~Item, ([o, i]) => Returned -> Item~ | Catches ~actions~ emitted by the first parameter. Calls the second parameter when an ~action~ is caught. |
-| ~core/return~        | ~:action -> x -> Returned~           | Returns something that can be consumed to either trigger an emit of an action or a state change.         |
-| ~core/focus~         | ~Lens -> Item -> Item~               | Restrict state of the second parameter to only what the first parameter (lens) allows.                   |
-| ~dom/div~            | ~[Item] -> Item~                     | Bundle multiple ~Items~ into one ~Item~ (just like a ~<div>~ would do in HTML).                          |
+Before we dive deeper into the unique features that reacl-c has to offer, we'd like to give an overview of the most important functions in the form of table 1 and table 2.
+Table 1 shows their signatures while table 2 gives a brief description. We will explain each function further in the coming chapters.
 
 Take note how many of those functions take something and an ~Item~ as a parameter - and return an ~Item~ again. This is what allows us to build concise and powerful components that we can also easily compose further.
 
 Having now seen the most important functions, we're ready to learn how to use these basic building blocks. Let's begin by talking about how we can use and define ~Items~.
+
+#+LATEX: \newgeometry{left=1.1in,right=1.1in}
+#+LATEX: \vspace*{\fill}
+#+CAPTION: Signature and description of the most important reacl-c functions.
+| Name                 | Signature                            |
+| ~core/local-state~   | ~x -> Item -> Item~                  |
+| ~core/dynamic~       | ~([o, i]) => Item -> Item~           |
+| ~core/handle-action~ | ~Item, ([o, i]) => Returned -> Item~ |
+| ~core/return~        | ~:action -> x -> Returned~           |
+| ~core/focus~         | ~Lens -> Item -> Item~               |
+| ~dom/div~            | ~[Item] -> Item~                     |
+
+#+CAPTION: Signature and description of the most important reacl-c functions.
+| Name                 | Description                                                                            |
+| ~core/local-state~   | Makes the first parameter available as inner state inside of the second parameter.     |
+| ~core/dynamic~       | Gives access to state inside of function. Function needs to return an ~Item~.          |
+| ~core/handle-action~ | Catches ~actions~ emitted by first parameter. Calls second parameter when caught.      |
+| ~core/return~        | Returns something that can either trigger an emit of an action or a state change.      |
+| ~core/focus~         | Restrict state of the second parameter to only what the first parameter (lens) allows. |
+| ~dom/div~            | Bundle multiple ~Items~ into one ~Item~ (just like a ~<div>~ would do in HTML).        |
+#+LATEX: \vspace*{\fill}
+#+LATEX: \newgeometry{left=1.6in,right=1.6in}
+
 *** How an Item is made
 :PROPERTIES:
 :UNNUMBERED: t
