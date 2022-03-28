@@ -63,6 +63,30 @@ First of all I'd like to thank my advisor, Markus Schlegel, for not only providi
 I'd also like to thank the Active Group GmbH for making this thesis possible. I'm very thankful and happy that I got to explore such an interesting topic.
 Lastly I'd like to thank my professor, Prof. Dr. Stefan Wehr, for introducing me to the Active Group GmbH and also giving helpful answers to my questions.
 #+LATEX: \newpage
+* Eidesstattliche Erklärung
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+#+LATEX: \begin{flushleft}
+Hiermit versichere ich eidesstattlich, dass ich die vorliegende Arbeit mit dem Thema
+#+LATEX: \vspace{1cm}
+
+#+LATEX: {\normalsize {\bf Komposition von UI Elementen in reacl-cl mittels Monaden } \par}
+
+#+LATEX: \vspace{1cm}
+
+von mir selbstständig und ohne unerlaubte fremde Hilfe angefertigt worden ist, insbesondere, dass ich alle Stellen, die wörtlich oder annähernd wörtlich oder dem Gedanken nach aus Veröffentlichungen, unveröffentlichten Unterlagen und Gesprächen entnommen worden sind, als solche an den entsprechenden Stellen innerhalb der Arbeit durch Zitate kenntlich gemacht habe, wobei in den Zitaten jeweils der Umfang der entnommenen Originalzitate kenntlich gemacht wurde. Die Arbeit lag in gleicher oder ähnlicher Fassung noch keiner Prüfungsbehörde vor und wurde bisher nicht veröffentlicht. Ich bin mir bewusst, dass eine falsche Versicherung rechtliche Folgen haben wird.
+
+#+LATEX: \vspace{2cm}
+
+Ringsheim, 30.03.2022
+
+#+LATEX: \vspace{4cm}
+
+Marlon Schlosshauer
+#+LATEX: \end{flushleft}
+#+LATEX: \newpage
 * Abstract
 :PROPERTIES:
 :UNNUMBERED: t
@@ -1090,14 +1114,17 @@ The source code for our implementation can be found here [[cite:&seq-comp-reacl-
 
 bibliographystyle:ieeetr
 [[bibliography:./cites.bib]]
+#+LATEX: \newpage
 
 * List of Figures
 
 #+LATEX: \listoffigures
+#+LATEX: \newpage
 
 * List of Tables
 
 #+LATEX: \listoftables
+#+LATEX: \newpage
 
 * List of Listings
 
