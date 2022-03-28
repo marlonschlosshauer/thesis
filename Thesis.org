@@ -1087,7 +1087,7 @@ The source code for our implementation can be found here [[cite:&seq-comp-reacl-
 
 * References
 
-bibliographystyle:unsrt
+bibliographystyle:ieeetr
 [[bibliography:./cites.bib]]
 
 * List of Figures
