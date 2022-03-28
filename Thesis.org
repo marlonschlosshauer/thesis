@@ -192,8 +192,8 @@ To make components even more composable the parent can not just control the resu
 
 In React often another package like Redux is used to fix the problem of having to pass-down functions. Instead of saving all state in each component, state can be managed at a central point which components can send messages to, causing the central state to change. This can cause issues with the composability of components. The problem with this approach is that components cannot be placed multiple times into the app, without making sure they don't all work on the same central state, first. Reacl-c solves this issue by allowing any component to send and receive messages. Not only does this allow for local reasoning, but it also enables us to wrap a component with an action handler and place it infinitely in our app without worry, as the component won't affect anything outside of that handler (as long as the handler is setup correctly).
 
-Before we dive deeper into the unique features that reacl-c has to offer, we'd like to give an overview of the most important functions in the form of table 1 and table 2.
-Table 1 shows their signatures while table 2 gives a brief description. We will explain each function further in the coming chapters.
+Before we dive deeper into the unique features that reacl-c has to offer, we'd like to give an overview of the most important functions in the form of [[reacl-c-signature-table][table 1]] and [[reacl-c-description-table][table 2]].
+[[reacl-c-signature-table][Table 1]] shows their signatures while [[reacl-c-description-table][table 2]] gives a brief description. We will explain each function further in the coming chapters.
 
 Take note how many of those functions take something and an ~Item~ as a parameter - and return an ~Item~ again. This is what allows us to build concise and powerful components that we can also easily compose further.
 
@@ -201,7 +201,8 @@ Having now seen the most important functions, we're ready to learn how to use th
 
 #+LATEX: \newgeometry{left=1.1in,right=1.1in}
 #+LATEX: \vspace*{\fill}
-#+CAPTION: Signature and description of the most important reacl-c functions.
+#+CAPTION: Signature of important reacl-c functions.
+#+LABEL: reacl-c-signature-table
 | Name                 | Signature                            |
 | ~core/local-state~   | ~x -> Item -> Item~                  |
 | ~core/dynamic~       | ~([o, i]) => Item -> Item~           |
@@ -210,7 +211,8 @@ Having now seen the most important functions, we're ready to learn how to use th
 | ~core/focus~         | ~Lens -> Item -> Item~               |
 | ~dom/div~            | ~[Item] -> Item~                     |
 
-#+CAPTION: Signature and description of the most important reacl-c functions.
+#+CAPTION: Description of important reacl-c functions.
+#+LABEL: reacl-c-description-table
 | Name                 | Description                                                                            |
 | ~core/local-state~   | Makes the first parameter available as inner state inside of the second parameter.     |
 | ~core/dynamic~       | Gives access to state inside of function. Function needs to return an ~Item~.          |
@@ -566,9 +568,10 @@ In short:
 - ~Prog~: An ~Item~ that will emit a ~Commit~
 Internally ~Prog~ has a subtype called ~Bind~, which is the result of a ~then~ call (see next chapter). The ~Bind~ holds both a ~Prog~ and a ~continuation~. The ~continuation~ will be called once a ~Commit~ has been captured from the ~Item~ inside of the ~Prog~. Because it is a subtype, every ~Bind~ is also a ~Prog~. This will enable us to endlessly compose ~Progs~ with ~bind~.
 ** Functions exposed by our API
-To deliver on the promises of frictionless composability without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~bind~ (here called ~then~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps. Table 2 shows an overview of the signatures of our primitive functions.
+To deliver on the promises of frictionless composability without loss of performance, monads are used. Because of that, the API needs to provide the ~return~ and ~bind~ (here called ~then~) functions to be considered a monad. Further, to display a ~Prog~ or ~Bind~ easily, a ~show~ function has been added. The most important function is ~runner~, which executes a ~Prog~ or ~Bind~ inside of it, allowing it to walk through the provided steps. [[api-primitives-table][Table 3]] shows an overview of the signatures of our primitive functions.
 
 #+CAPTION: Signatures of functions from our API shown in Haskell notation.
+#+LABEL: api-primitives-table
 | Name          | Signature                           |
 | ~return~      | ~a -> Prog a~                       |
 | ~then~        | ~Prog a -> (a -> Prog b) -> Prog b~ |
@@ -576,9 +579,10 @@ To deliver on the promises of frictionless composability without loss of perform
 | ~show~        | ~Prog a -> Item~                    |
 | ~make-commit~ | ~a -> Commit a~                     |
 
-We will also provide enhanced versions of ~then~ and ~runner~, that feature the ~let~ like structure that we saw previously. Table 3 shows their signature. Forthcoming We will mark primitive versions of ~then~ and ~runner~ by appending a ~-~, so ~-then~ & ~-runner~.
+We will also provide enhanced versions of ~then~ and ~runner~, that feature the ~let~ like structure that we saw previously. [[api-macros-table][Table 4]] shows their signature. Forthcoming We will mark primitive versions of ~then~ and ~runner~ by appending a ~-~, so ~-then~ & ~-runner~.
 
 #+CAPTION: Signatures of functions for our enhanced versions.
+#+LABEL: api-macros-table
 | Name     | Signature               |
 | ~runner~ | ~[(a, Item)] -> Item~   |
 | ~then~   | ~[(a, Item)] -> Prog b~ |
@@ -845,9 +849,10 @@ Before we dive into the macros themselves, we first need to take a look at how m
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-Macros allow us to delay evaluation of just some parts of our code. That is a powerful tool. ClojureScript provides a couple of new symbols so developers can describe how it should evaluate code. We can use these symbols inside of a ~defmacro~ function, which works similar to ~defn~ and ~def~ with which we define functions and values with. Table 4 shows a list of some of the available symbols.
+Macros allow us to delay evaluation of just some parts of our code. That is a powerful tool. ClojureScript provides a couple of new symbols so developers can describe how it should evaluate code. We can use these symbols inside of a ~defmacro~ function, which works similar to ~defn~ and ~def~ with which we define functions and values with. [[macros-syntax-table][Table 5]] shows a list of some of the available symbols.
 
 #+CAPTION: Clojure syntax for working with macros
+#+LABEL: macros-syntax-table
 | Symbol | Name           | Function                            |
 | ~'~    | Quoting        | Stop execution                      |
 | ~`~    | Syntax quoting | Like ~'~ but qualify with namespace |
