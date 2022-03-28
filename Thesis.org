@@ -8,6 +8,7 @@
 #+LATEX_HEADER: \usepackage[margin=1.6in]{geometry}
 
 #+LATEX_HEADER: \hypersetup{colorlinks=true, linkcolor=black, citecolor=black}
+#+LATEX: \usemintedstyle{xcode}
 #+LATEX_HEADER: \usepackage{adjustbox}
 #+LATEX_HEADER: \usepackage{float}
 #+LATEX_HEADER: \restylefloat{table}
@@ -133,29 +134,29 @@ An example of JSX can be seen in [[listing-1][listing 1]], which shows how the r
       const [email, setEmail] = useState();
       const [password, setPassword] = useState();
       return (
-	      <div className="register-inputs">
-	      <input name="email" type="text" value={email} onChange={(e) => setEmail(e.target.value)}/>
-	      <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}/>
-	      <button>Register</button>
-	      </div>
+	  <div className="register-inputs">
+	    <input name="email" type="text" value={email} onChange={(e) => setEmail(e.target.value)}/>
+	    <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}/>
+	    <button>Register</button>
+	  </div>
       )
   }
 
   const registerContainer = () => {
       return (
-	      <div className="header-container">
-	      <h2>Example page</h2>
-	      <registerInputs/>
-	      </div>
+	  <div className="header-container">
+	    <h2>Example page</h2>
+	    <registerInputs/>
+	  </div>
       )
   }
 
   const registerPage = () => {
       return (
-	      <div className="register-container">
-	      <img alt="Company logo" src={image}/>
-	      <registerContainer/>
-	      </div>
+	  <div className="register-container">
+	    <img alt="Company logo" src={image}/>
+	    <registerContainer/>
+	  </div>
       )
   }
 #+end_src
