@@ -58,8 +58,8 @@
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-I'd like to thank some of the many people that supported me while I was writing this thesis.
-First of all I'd like to thank my supervisor, Markus Schlegel, for not only providing many of the ideas found in this thesis, but also sharing his vast knowledge of function programming and reacl-c.
+I'd like to thank some of the many people that supported me while I wrote this thesis.
+First of all I'd like to thank my advisor, Markus Schlegel, for not only providing many of the ideas found in this thesis, but also sharing his vast knowledge of function programming and reacl-c.
 I'd also like to thank the Active Group GmbH for making this thesis possible. I'm very thankful and happy that I got to explore such an interesting topic.
 Lastly I'd like to thank my professor, Prof. Dr. Stefan Wehr, for introducing me to the Active Group GmbH and also giving helpful answers to my questions.
 #+LATEX: \newpage
