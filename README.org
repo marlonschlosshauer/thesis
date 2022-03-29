@@ -80,7 +80,7 @@ von mir selbstständig und ohne unerlaubte fremde Hilfe angefertigt worden ist, 
 
 #+LATEX: \vspace{2cm}
 
-Ringsheim, 30.03.2022
+Offenburg, 30.03.2022
 
 #+LATEX: \vspace{4cm}
 
@@ -603,7 +603,7 @@ This being the introduction of sequential composition into reacl-c, it was impor
 The implementation needs to also hide the heavy lifting done in the background and not cause any unexpected issues that would cause it to become unusable for challenging scenarios (e.g long sequences). The sequential composition should not interfere with the parallel composition and the borders between the two should be clearly visible. Most importantly though is that sequential composition should be easy.
 In this chapter we will introduce our API from a higher level by talking about types and available functions, as well as sharing thoughts on behavior in edge cases.
 ** Types of our API
-While ClojureScript is a dynamically typed language, it is helpful to create types using Clojures ~records~ to make handling and transforming data easier.
+While ClojureScript is a dynamically typed language, it is helpful to create types using Clojure's ~records~ to make handling and transforming data easier.
 The most fundamental type is an UI element, which reacl-c already supplies in the form of ~Item~. To signal that the next step should be executed the ~Item~ needs to emit something which can be recognized internally. For that purpose the ~Commit~ record exists. If an ~Item~ emits a ~Commit~, the internals will execute the next step.
 A developer could just pass an ~Item~ for composition, however, it makes sense to have the developer acknowledge that they're working with more than just a simple ~Item~. After all, the ~Item~ should at some point emit a ~Commit~ to change the currently shown step. So, to be able to use the ~Item~ for sequential composition, the developer needs to wrap it in a ~Prog~. This signals that the developer understood that the ~Item~ will eventually emit a ~Commit~.
 In short:
@@ -865,13 +865,13 @@ To display our sequential composition we can use the ~runner~. If however we jus
 #+end_src
 #+LATEX: \newpage
 ** Macros
-When we discussed our implementation of sequential composition earlier, we used ClojureScripts ~let~ as an inspiration. We choose that function, among other things, because it's ~key:value~ structure is well understood and is much easier to read than nested anonymous function calls. However, to achieve our goal of providing a ~let~ like structure we need to make use of a ClojureScript feature called macros.
+When we discussed our implementation of sequential composition earlier, we used ClojureScript's ~let~ as an inspiration. We choose that function, among other things, because it's ~key:value~ structure is well understood and is much easier to read than nested anonymous function calls. However, to achieve our goal of providing a ~let~ like structure we need to make use of a ClojureScript feature called macros.
 In the following pages we will explain what macros are, talk about why they're used and show how to write them. At the end we will showcase our macros and give insight into how they work.
 *** What are macros?
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-Macros are a powerful feature which lets us rewrite our ClojureScript code before it is being evaluated. That allows us to use all of ClojureScripts functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a Clojure data structure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated. Because of this we can use the entire language to transform our code, like we transform data, into something more usable.
+Macros are a powerful feature which lets us rewrite our ClojureScript code before it is being evaluated. That allows us to use all of ClojureScript's functions to manipulate the input code. This is made possible partly because ClojureScript is a Lisp, so the code already looks like a Clojure data structure. The language uses this to its advantage to operate on itself. The return value of a macro will be a list of code, that will then be evaluated. Because of this we can use the entire language to transform our code, like we transform data, into something more usable.
 Macros can be found all over Clojure and ClojureScript. Functions like ~when~ [[cite:&clojure-when]] and ~when-not~ [[cite:&clojure-when-not]] are actually macros that rewrite themselves to a simple ~if~. Even the already much discussed ~let~ function is a macro [[cite:&clojure-let-code]].
 *** What are the uses cases for macros?
 :PROPERTIES:
@@ -927,7 +927,7 @@ There are multiple ways to write a macro for use in ClojureScript. The easiest w
 :PROPERTIES:
 :UNNUMBERED: t
 :END:
-The goal of our macro is to rewrite the passing of multiple ~Progs~ into a series of ~then~ calls, which then bind the result of each step to a symbol. Like with Clojures ~let~, we want to pass a list of ~key:value~ pairs to our macro. Internally the macro will change this to correct ClojureScript code. Correct, because just putting undefined symbols into a list like ~[this or that 1]~ wouldn't work.
+The goal of our macro is to rewrite the passing of multiple ~Progs~ into a series of ~then~ calls, which then bind the result of each step to a symbol. Like with Clojure's ~let~, we want to pass a list of ~key:value~ pairs to our macro. Internally the macro will change this to correct ClojureScript code. Correct, because just putting undefined symbols into a list like ~[this or that 1]~ wouldn't work.
 [[listing-26][Listing 26]] hints at what needs to be done.
 #+CAPTION[Showcasing what the ~then~ macro does.]: The macro will take care of wrapping ~Progs~ in a ~-then~ and creates an anonymous functions each time (while binding ~keys~ to function parameters)
 #+NAME: listing-26
@@ -1097,6 +1097,7 @@ During the implementation of the ~runner~ the idea for early termination came up
 But, not just a separate type for terminating early would be of interest. Having the ability to communicate that an error has occurred and then being able to handle that (maybe even in different steps of severity) would be also beneficial. A possible scenario would be a lot of time passing since step 1 and step 2 and the user gets logged out. Instead of having to handle the error either outside of the ~runner~ or inside of every single step, we could dedicate a space inside of the ~runner~ for exactly that.
 Besides new types, another improvement would be to force a developer to ~Commit~ something inside of a ~Prog~. The implementation for this is unclear, however the feature is of interest as that could be a major source of bugs.
 Lastly, helper functions for sequential composition, like the ones that exist in reacl-c for parallel composition, could be a possible addition. Things like a ~def-prog~ function that works like ~def-item~ but also wraps the resulting ~Item~ inside of a ~return~ or the ability to map actions emitted from a component to be ~Commits~ so the actual component doesn't need to be changed, but can still be used inside of a sequential-composition. There are probably many more applications of the deep pool of functions inside of reacl-c, so these are just some that came to mind.
+Sadly at the time of writing, there still is a bug with the ~end-expr~ of the ~runner~ (and ~then~). If it has to change state it will cause the sequence to run twice. After lot's of testing we narrowed down the possible cause to an issue with how state is managed. This could perhaps be an issue with reacl-c or even React. Further research into this bug would be done if more time was available.
 #+LATEX: \newpage
 * Conclusion
 Having used our API to build the earlier mentioned examples, it is clear to us that our implementation delivers what it set out to do: Enable sequential composition in a developer friendly way. Creating sequences of steps is now much easier and composable. Despite all of the work happening under the hood, from tail call optimization to handling the asynchronously, the developer can use the API without ever being bothered by either. At the same time usage is simple, thanks to taking an already well understood way of working with data, like ~let~, as an inspiration.
